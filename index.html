@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRUE LIVE SEC V32</title>
+<title>TRUE LIVE SEC V33 FAST</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#020617;color:#fff;font-family:system-ui;padding:15px}
 .container{max-width:700px;margin:0 auto}h1{text-align:center;margin:10px 0;font-size:26px}
@@ -13,53 +13,132 @@ input:focus{border-color:#3b82f6}button{width:100%;background:#3b82f6;color:whit
 .quick{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
 .quick span{background:#334155;padding:8px 14px;border-radius:20px;font-size:14px;cursor:pointer}
 .result{margin-top:15px}.ok{color:#22c55e}.err{color:#ef4444}
-pre{background:#0f172a;padding:12px;border-radius:12px;overflow:auto;font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-all}
+pre{background:#0f172a;padding:12px;border-radius:12px;overflow:auto;font-size:11px;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-all}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>TRUE LIVE SEC V32 🔍</h1>
-<div class="sub">بحث مباشر في SEC EDGAR - حل CORS نهائي<br>Contact: Mahmoudsalem2080@gmail.com</div>
+<h1>TRUE LIVE SEC V33 ⚡</h1>
+<div class="sub">سريع - بيانات محفوظة - بدون انتظار<br>Contact: Mahmoudsalem2080@gmail.com</div>
 <div class="card">
-<input id="q" placeholder="اكتب AAPL او TSLA او Apple" value="AAPL">
+<input id="q" placeholder="AAPL, MSFT, TSLA..." value="AAPL">
 <button onclick="search()">🚀 بحث الآن</button>
 <div class="quick">
-<span onclick="setQ('AAPL')">AAPL</span><span onclick="setQ('MSFT')">MSFT</span><span onclick="setQ('TSLA')">TSLA</span><span onclick="setQ('NVDA')">NVDA</span><span onclick="setQ('Apple')">Apple</span>
+<span onclick="setQ('AAPL')">AAPL</span><span onclick="setQ('MSFT')">MSFT</span><span onclick="setQ('TSLA')">TSLA</span><span onclick="setQ('NVDA')">NVDA</span><span onclick="setQ('GOOGL')">GOOGL</span><span onclick="setQ('AMZN')">AMZN</span><span onclick="setQ('META')">META</span><span onclick="setQ('NFLX')">NFLX</span>
 </div>
-<div id="out" class="result"><div style="text-align:center;color:#64748b">جاهز للبحث...</div></div>
+<div id="out" class="result"><div style="text-align:center;color:#64748b">جاهز...</div></div>
 </div>
 </div>
 <script>
+const CIK_MAP = {
+"AAPL":{"cik":"0000320193","name":"Apple Inc."},
+"MSFT":{"cik":"0000789019","name":"MICROSOFT CORP"},
+"TSLA":{"cik":"0001318605","name":"Tesla, Inc."},
+"NVDA":{"cik":"0001045810","name":"NVIDIA CORP"},
+"GOOGL":{"cik":"0001652044","name":"Alphabet Inc."},
+"GOOG":{"cik":"0001652044","name":"Alphabet Inc."},
+"AMZN":{"cik":"0001018724","name":"AMAZON COM INC"},
+"META":{"cik":"0001326801","name":"Meta Platforms, Inc."},
+"NFLX":{"cik":"0001065280","name":"NETFLIX INC"},
+"BRK.B":{"cik":"0001067983","name":"BERKSHIRE HATHAWAY INC"},
+"BRK":{"cik":"0001067983","name":"BERKSHIRE HATHAWAY INC"},
+"AMD":{"cik":"0000002488","name":"ADVANCED MICRO DEVICES INC"},
+"INTC":{"cik":"0000050863","name":"INTEL CORP"},
+"BA":{"cik":"0000012927","name":"BOEING CO"},
+"JPM":{"cik":"0000019617","name":"JPMORGAN CHASE & CO"},
+"V":{"cik":"0001403161","name":"VISA INC"},
+"JNJ":{"cik":"0000200406","name":"JOHNSON & JOHNSON"},
+"WMT":{"cik":"0000104169","name":"WALMART INC"},
+"PG":{"cik":"0000080424","name":"PROCTER & GAMBLE CO"},
+"DIS":{"cik":"0001744489","name":"Walt Disney Co"},
+"PFE":{"cik":"0000078003","name":"PFIZER INC"},
+"KO":{"cik":"0000021344","name":"COCA COLA CO"},
+"PEP":{"cik":"0000077476","name":"PEPSICO INC"},
+"CSCO":{"cik":"0000858877","name":"CISCO SYSTEMS INC"},
+"ADBE":{"cik":"0000796343","name":"ADOBE INC"},
+"CRM":{"cik":"0001108524","name":"Salesforce, Inc."},
+"ORCL":{"cik":"0001341439","name":"ORACLE CORP"},
+"AVGO":{"cik":"0001730168","name":"Broadcom Inc."},
+"COST":{"cik":"0000909832","name":"COSTCO WHOLESALE CORP"},
+"APPLE":{"cik":"0000320193","name":"Apple Inc."},
+"MICROSOFT":{"cik":"0000789019","name":"MICROSOFT CORP"},
+"TESLA":{"cik":"0001318605","name":"Tesla, Inc."}
+};
 function setQ(v){document.getElementById('q').value=v; search();}
+async function fetchWithProxies(url){
+  const proxies = [
+    'https://api.allorigins.win/raw?url=',
+    'https://corsproxy.io/?',
+    'https://api.codetabs.com/v1/proxy?quest='
+  ];
+  for(let p of proxies){
+    try{
+      const full = p + encodeURIComponent(url);
+      const r = await fetch(full, {headers:{'Accept':'application/json'}});
+      if(r.ok){
+        const txt = await r.text();
+        try{ return JSON.parse(txt); }catch(e){ continue; }
+      }
+    }catch(e){ continue; }
+  }
+  throw new Error('فشل الاتصال بـ SEC - جرب تاني');
+}
 async function search(){
-  const q=document.getElementById('q').value.trim(); if(!q) return;
+  const q=document.getElementById('q').value.trim().toUpperCase(); if(!q) return;
   const out=document.getElementById('out');
-  out.innerHTML='<div style="text-align:center;padding:20px">⏳ جاري البحث...</div>';
+  out.innerHTML='<div style="text-align:center;padding:15px">⏳ جاري البحث عن '+q+'...</div>';
   try{
-    const proxy='https://api.allorigins.win/raw?url=';
-    const tickersUrl='https://www.sec.gov/files/company_tickers.json';
-    out.innerHTML='<div style="text-align:center;padding:10px">📥 بجيب قائمة الشركات...</div>';
-    const r=await fetch(proxy+encodeURIComponent(tickersUrl));
-    const d=await r.json();
-    let cik=null,name=q,ticker=q.toUpperCase(); const ql=q.toLowerCase();
-    for(const k in d){const e=d[k]; if(e.ticker&&e.ticker.toLowerCase()===ql){cik=String(e.cik_str).padStart(10,'0'); name=e.title; ticker=e.ticker; break;}}
-    if(!cik){for(const k in d){const e=d[k]; if(e.title&&e.title.toLowerCase().includes(ql)){cik=String(e.cik_str).padStart(10,'0'); name=e.title; ticker=e.ticker; break;}}}
-    if(!cik) throw new Error('غير موجود - جرب AAPL');
-    out.innerHTML='<div style="text-align:center;padding:10px">✅ '+name+'<br>CIK:'+cik+'<br>⏳ بجيب المالية...</div>';
-    const factsUrl='https://data.sec.gov/api/xbrl/companyfacts/CIK'+cik+'.json';
-    const fr=await fetch(proxy+encodeURIComponent(factsUrl));
-    const facts=await fr.json();
-    const usd=facts.facts?.['us-gaap']||{};
-    const get=(c)=>{const a=usd[c]?.units?.USD; if(!a?.length) return null; return [...a].sort((a,b)=>new Date(b.end)-new Date(a.end))[0];};
-    const rev=get('Revenues')||get('RevenueFromContractWithCustomerExcludingAssessedTax')||get('SalesRevenueNet');
-    const inc=get('NetIncomeLoss'); const ast=get('Assets');
-    const result={ok:true,source:'SEC LIVE via proxy',cik,ticker,company:facts.entityName||name,financials:{revenue:rev?{value:rev.val,end:rev.end}:null,netIncome:inc?{value:inc.val,end:inc.end}:null,assets:ast?{value:ast.val,end:ast.end}:null},timestamp:new Date().toISOString()};
-    out.innerHTML='<div class=ok>✅ تم!</div><div style="margin:12px 0;background:#0f172a;padding:12px;border-radius:12px"><b>'+result.company+'</b> ('+result.ticker+')<br>CIK:'+result.cik
-      +'<div style="margin-top:10px">💰 الإيرادات: <b>'+(rev?(rev.val/1e9).toFixed(2)+' مليار $':'N/A')+'</b></div>'
-      +'<div>📈 الدخل: <b>'+(inc?(inc.val/1e9).toFixed(2)+' مليار $':'N/A')+'</b></div>'
-      +'<div>🏦 الأصول: <b>'+(ast?(ast.val/1e9).toFixed(2)+' مليار $':'N/A')+'</b></div>'
-      +'</div><pre>'+JSON.stringify(result,null,2)+'</pre>';
-  }catch(e){out.innerHTML='<div class=err>❌ '+e.message+'</div>';}
+    let info = CIK_MAP[q];
+    if(!info){
+      for(let k in CIK_MAP){ if(k.includes(q) || q.includes(k)){ info=CIK_MAP[k]; break; } }
+    }
+    if(!info) throw new Error('الشركة '+q+' مش في القائمة السريعة - جرب AAPL, MSFT, TSLA, NVDA, GOOGL, AMZN, META');
+    out.innerHTML='<div style="text-align:center;padding:10px">✅ '+info.name+'<br>CIK: '+info.cik+'<br>⏳ بجيب البيانات المالية...</div>';
+    const cik10 = info.cik.padStart(10,'0');
+    const factsUrl = 'https://data.sec.gov/api/xbrl/companyfacts/CIK'+cik10+'.json';
+    const facts = await fetchWithProxies(factsUrl);
+    const usd = facts.facts?.['us-gaap']||{};
+    const dei = facts.facts?.['dei']||{};
+    const get=(c)=>{
+      const u = usd[c]?.units?.USD || dei[c]?.units?.USD || usd[c]?.units?.pure || null;
+      if(!u || !u.length) return null;
+      return [...u].sort((a,b)=>new Date(b.end)-new Date(a.end))[0];
+    };
+    const rev = get('Revenues')||get('RevenueFromContractWithCustomerExcludingAssessedTax')||get('SalesRevenueNet')||get('RevenuesNet');
+    const inc = get('NetIncomeLoss')||get('NetIncomeLossAvailableToCommonStockholdersBasic');
+    const ast = get('Assets');
+    const eps = get('EarningsPerShareBasic')||get('EarningsPerShareDiluted');
+    const result = {
+      ok:true,
+      source:'SEC EDGAR LIVE V33',
+      cik: cik10,
+      ticker: q,
+      company: facts.entityName || info.name,
+      financials:{
+        revenue: rev ? { value: rev.val, end: rev.end, form: rev.form, fiscal: rev.fp+' '+rev.fy } : null,
+        netIncome: inc ? { value: inc.val, end: inc.end, form: inc.form } : null,
+        assets: ast ? { value: ast.val, end: ast.end } : null,
+        eps: eps ? { value: eps.val, end: eps.end } : null
+      },
+      sec_links:{
+        edgar: 'https://www.sec.gov/cgi-bin/browse-edgar?CIK='+cik10+'&action=getcompany',
+        facts_api: factsUrl
+      },
+      timestamp: new Date().toISOString()
+    };
+    out.innerHTML = '<div class=ok>✅ تم بنجاح! LIVE من SEC</div>'
+      + '<div style="margin:12px 0;background:#0f172a;padding:14px;border-radius:12px;border:1px solid #1e3a5f">'
+      + '<b style="font-size:16px">'+result.company+'</b> ('+q+')<br><small style="color:#94a3b8">CIK: '+result.cik+' | <a href="'+result.sec_links.edgar+'" target=_blank style="color:#60a5fa">عرض في SEC</a></small>'
+      + '<div style="margin-top:12px;display:grid;gap:8px">'
+      + '<div style="background:#020617;padding:10px;border-radius:8px">💰 الإيرادات: <b style="color:#22c55e">'+(rev? (rev.val/1e9).toFixed(2)+' مليار $' : 'N/A')+'</b> <small style="color:#64748b">'+(rev?.end||'')+'</small></div>'
+      + '<div style="background:#020617;padding:10px;border-radius:8px">📈 صافي الدخل: <b style="color:#22c55e">'+(inc? (inc.val/1e9).toFixed(2)+' مليار $' : 'N/A')+'</b></div>'
+      + '<div style="background:#020617;padding:10px;border-radius:8px">🏦 الأصول: <b>'+(ast? (ast.val/1e9).toFixed(2)+' مليار $' : 'N/A')+'</b></div>'
+      + '<div style="background:#020617;padding:10px;border-radius:8px">💵 ربحية السهم: <b>'+(eps? eps.val+' $' : 'N/A')+'</b></div>'
+      + '</div></div>'
+      + '<pre>'+JSON.stringify(result,null,2)+'</pre>';
+  }catch(e){
+    out.innerHTML='<div class=err>❌ خطأ: '+e.message+'</div><div style="margin-top:10px;background:#1e293b;padding:10px;border-radius:8px;font-size:12px">جرب: AAPL, MSFT, TSLA, NVDA, GOOGL, AMZN, META, NFLX</div>';
+  }
 }
 window.onload=()=>search();
 </script>
