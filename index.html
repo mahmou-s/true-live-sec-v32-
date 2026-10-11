@@ -1,107 +1,67 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TRUE LIVE SEC V32</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#020617;color:#e2e8f0;font-family:system-ui}
-.container{max-width:700px;margin:0 auto;padding:20px}
-.card{background:#0f172a;border:1px solid #1e293b;border-radius:20px;padding:20px;margin:15px 0}
-h1{text-align:center;font-size:28px;margin:10px 0}
-.sub{text-align:center;color:#94a3b8;margin-bottom:20px}
-input{width:100%;padding:18px;border-radius:14px;border:2px solid #334155;background:#020617;color:white;font-size:18px}
-button.search{width:100%;margin-top:12px;padding:16px;border-radius:14px;border:none;background:#3b82f6;color:white;font-size:18px;font-weight:bold}
-pre{background:#020617;border-radius:12px;padding:15px;overflow:auto;white-space:pre-wrap;word-break:break-all;font-size:13px;color:#7dd3fc;max-height:500px;border:1px solid #1e293b}
-.badge{display:inline-block;background:#1e293b;padding:6px 12px;border-radius:20px;font-size:13px;margin:3px;cursor:pointer}
-.ok{color:#22c55e} .err{color:#ef4444}
+*{box-sizing:border-box}body{margin:0;background:#020617;color:#fff;font-family:system-ui;padding:15px}
+.container{max-width:700px;margin:0 auto}h1{text-align:center;margin:10px 0;font-size:26px}
+.sub{text-align:center;color:#94a3b8;margin-bottom:20px;font-size:12px}
+.card{background:#1e293b;border-radius:20px;padding:20px;border:1px solid #334155}
+input{width:100%;background:#0f172a;border:2px solid #334155;border-radius:14px;padding:16px;font-size:20px;color:#fff;text-align:center;outline:none}
+input:focus{border-color:#3b82f6}button{width:100%;background:#3b82f6;color:white;border:none;padding:16px;border-radius:14px;font-size:18px;font-weight:bold;margin-top:12px;cursor:pointer}
+.quick{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+.quick span{background:#334155;padding:8px 14px;border-radius:20px;font-size:14px;cursor:pointer}
+.result{margin-top:15px}.ok{color:#22c55e}.err{color:#ef4444}
+pre{background:#0f172a;padding:12px;border-radius:12px;overflow:auto;font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-all}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>🔍 TRUE LIVE SEC V32</h1>
-<div class="sub">بحث مباشر في SEC EDGAR - شغال 100% على Vercel<br>Contact: Mahmoudsalem2080@gmail.com</div>
+<h1>TRUE LIVE SEC V32 🔍</h1>
+<div class="sub">بحث مباشر في SEC EDGAR - حل CORS نهائي<br>Contact: Mahmoudsalem2080@gmail.com</div>
 <div class="card">
-<input id="q" placeholder="اكتب AAPL أو Apple أو MSFT..." value="AAPL" />
-<button class="search" onclick="search()">🚀 بحث الآن</button>
-<div style="margin-top:12px">
-<span class="badge" onclick="setQ('AAPL')">AAPL</span>
-<span class="badge" onclick="setQ('MSFT')">MSFT</span>
-<span class="badge" onclick="setQ('TSLA')">TSLA</span>
-<span class="badge" onclick="setQ('NVDA')">NVDA</span>
-<span class="badge" onclick="setQ('Apple')">Apple</span>
+<input id="q" placeholder="اكتب AAPL او TSLA او Apple" value="AAPL">
+<button onclick="search()">🚀 بحث الآن</button>
+<div class="quick">
+<span onclick="setQ('AAPL')">AAPL</span><span onclick="setQ('MSFT')">MSFT</span><span onclick="setQ('TSLA')">TSLA</span><span onclick="setQ('NVDA')">NVDA</span><span onclick="setQ('Apple')">Apple</span>
 </div>
-</div>
-<div class="card">
-<div id="status2">جاهز للبحث...</div>
-<pre id="result" style="display:none"></pre>
+<div id="out" class="result"><div style="text-align:center;color:#64748b">جاهز للبحث...</div></div>
 </div>
 </div>
 <script>
-const EMAIL = "Mahmoudsalem2080@gmail.com";
 function setQ(v){document.getElementById('q').value=v; search();}
 async function search(){
-  const q = document.getElementById('q').value.trim();
-  if(!q){alert('اكتب رمز الشركة');return;}
-  const status = document.getElementById('status2');
-  const pre = document.getElementById('result');
-  status.innerHTML = '⏳ جاري البحث في SEC...';
-  pre.style.display='none';
+  const q=document.getElementById('q').value.trim(); if(!q) return;
+  const out=document.getElementById('out');
+  out.innerHTML='<div style="text-align:center;padding:20px">⏳ جاري البحث...</div>';
   try{
-    const tickersResp = await fetch("https://www.sec.gov/files/company_tickers.json");
-    const tickersData = await tickersResp.json();
-    let cik=null, companyName=q, ticker=q.toUpperCase();
-    const qLower = q.toLowerCase();
-    for(const k in tickersData){
-      const e = tickersData[k];
-      if(e.ticker && e.ticker.toLowerCase()===qLower){
-        cik = String(e.cik_str).padStart(10,'0');
-        companyName = e.title; ticker = e.ticker; break;
-      }
-    }
-    if(!cik){
-      for(const k in tickersData){
-        const e = tickersData[k];
-        if(e.title && e.title.toLowerCase().includes(qLower)){
-          cik = String(e.cik_str).padStart(10,'0');
-          companyName = e.title; ticker = e.ticker; break;
-        }
-      }
-    }
-    if(!cik) throw new Error("الشركة غير موجودة - جرب AAPL");
-    status.innerHTML = '✅ لقيتها: '+companyName+' - CIK: '+cik+'<br>⏳ بجيب البيانات...';
-    const factsUrl = 'https://data.sec.gov/api/xbrl/companyfacts/CIK'+cik+'.json';
-    const factsResp = await fetch(factsUrl, { headers: { "User-Agent": EMAIL, "Accept":"application/json" } });
-    const facts = await factsResp.json();
-    const usd = facts.facts?.["us-gaap"] || {};
-    const getLatest = (concept) => {
-      const arr = usd[concept]?.units?.USD;
-      if(!arr || !arr.length) return null;
-      return [...arr].sort((a,b)=>new Date(b.end)-new Date(a.end))[0];
-    };
-    const data = {
-      ok: true, source: "SEC EDGAR LIVE - VERCEL", cik: cik, ticker: ticker,
-      company: facts.entityName || companyName, contact: EMAIL,
-      financials: {
-        revenue: getLatest("Revenues") || getLatest("RevenueFromContractWithCustomerExcludingAssessedTax"),
-        netIncome: getLatest("NetIncomeLoss"), assets: getLatest("Assets")
-      },
-      timestamp: new Date().toISOString()
-    };
-    status.innerHTML = '<span class="ok">✅ تم!</span><br><b>'+data.company+' ('+data.ticker+')</b> - CIK: '+cik;
-    pre.style.display='block';
-    pre.textContent = JSON.stringify(data, null, 2);
-  }catch(e){
-    status.innerHTML = '<span class="err">❌ خطأ: '+e.message+'</span>';
-    pre.style.display='block';
-    pre.textContent = e.stack;
-  }
+    const proxy='https://api.allorigins.win/raw?url=';
+    const tickersUrl='https://www.sec.gov/files/company_tickers.json';
+    out.innerHTML='<div style="text-align:center;padding:10px">📥 بجيب قائمة الشركات...</div>';
+    const r=await fetch(proxy+encodeURIComponent(tickersUrl));
+    const d=await r.json();
+    let cik=null,name=q,ticker=q.toUpperCase(); const ql=q.toLowerCase();
+    for(const k in d){const e=d[k]; if(e.ticker&&e.ticker.toLowerCase()===ql){cik=String(e.cik_str).padStart(10,'0'); name=e.title; ticker=e.ticker; break;}}
+    if(!cik){for(const k in d){const e=d[k]; if(e.title&&e.title.toLowerCase().includes(ql)){cik=String(e.cik_str).padStart(10,'0'); name=e.title; ticker=e.ticker; break;}}}
+    if(!cik) throw new Error('غير موجود - جرب AAPL');
+    out.innerHTML='<div style="text-align:center;padding:10px">✅ '+name+'<br>CIK:'+cik+'<br>⏳ بجيب المالية...</div>';
+    const factsUrl='https://data.sec.gov/api/xbrl/companyfacts/CIK'+cik+'.json';
+    const fr=await fetch(proxy+encodeURIComponent(factsUrl));
+    const facts=await fr.json();
+    const usd=facts.facts?.['us-gaap']||{};
+    const get=(c)=>{const a=usd[c]?.units?.USD; if(!a?.length) return null; return [...a].sort((a,b)=>new Date(b.end)-new Date(a.end))[0];};
+    const rev=get('Revenues')||get('RevenueFromContractWithCustomerExcludingAssessedTax')||get('SalesRevenueNet');
+    const inc=get('NetIncomeLoss'); const ast=get('Assets');
+    const result={ok:true,source:'SEC LIVE via proxy',cik,ticker,company:facts.entityName||name,financials:{revenue:rev?{value:rev.val,end:rev.end}:null,netIncome:inc?{value:inc.val,end:inc.end}:null,assets:ast?{value:ast.val,end:ast.end}:null},timestamp:new Date().toISOString()};
+    out.innerHTML='<div class=ok>✅ تم!</div><div style="margin:12px 0;background:#0f172a;padding:12px;border-radius:12px"><b>'+result.company+'</b> ('+result.ticker+')<br>CIK:'+result.cik
+      +'<div style="margin-top:10px">💰 الإيرادات: <b>'+(rev?(rev.val/1e9).toFixed(2)+' مليار $':'N/A')+'</b></div>'
+      +'<div>📈 الدخل: <b>'+(inc?(inc.val/1e9).toFixed(2)+' مليار $':'N/A')+'</b></div>'
+      +'<div>🏦 الأصول: <b>'+(ast?(ast.val/1e9).toFixed(2)+' مليار $':'N/A')+'</b></div>'
+      +'</div><pre>'+JSON.stringify(result,null,2)+'</pre>';
+  }catch(e){out.innerHTML='<div class=err>❌ '+e.message+'</div>';}
 }
-const urlParams = new URLSearchParams(window.location.search);
-if(urlParams.get('q') || urlParams.get('ticker')){
-  document.getElementById('q').value = urlParams.get('q') || urlParams.get('ticker');
-}
-window.onload = ()=>search();
+window.onload=()=>search();
 </script>
 </body>
 </html>
