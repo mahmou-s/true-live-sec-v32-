@@ -2,13 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRUE LIVE SEC V35 - SEC Compliant</title>
+<title>TRUE LIVE SEC V36 - Secure Fixed</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#020617;color:#fff;font-family:system-ui;padding:12px}
 .container{max-width:900px;margin:0 auto}
 h1{text-align:center;color:#22c55e;margin:8px 0}
-.sub{text-align:center;color:#94a3b8;font-size:12px;line-height:1.6;margin-bottom:16px}
+.sub{text-align:center;color:#94a3b8;font-size:11px;line-height:1.6;margin-bottom:16px}
 .card{background:#1e293b;border-radius:20px;padding:18px;border:1px solid #334155;margin-bottom:12px}
 input{width:100%;background:#0f172a;border:2px solid #334155;border-radius:14px;padding:14px;font-size:18px;color:#fff;text-align:center;outline:none}
 input:focus{border-color:#22c55e}
@@ -16,7 +16,7 @@ button{width:100%;background:#22c55e;color:#000;border:none;padding:14px;border-
 .quick{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
 .quick span{background:#334155;padding:7px 12px;border-radius:20px;font-size:13px;cursor:pointer}
 .badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:bold}
-.badge-live{background:#22c55e;color:#000}
+.badge-live{background:#22c55e;color:#000}.badge-cache{background:#f59e0b;color:#000}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .kpi{background:#020617;padding:10px;border-radius:12px;text-align:center;border:1px solid #1e293b}
 .kpi b{display:block;font-size:18px;color:#22c55e}
@@ -26,10 +26,10 @@ pre{background:#020617;padding:10px;border-radius:12px;overflow:auto;font-size:1
 </head>
 <body>
 <div class="container">
-<h1>⚡ TRUE LIVE SEC V35</h1>
-<div class="sub">آمن 100% - بدون بروكسيات - دالة خادم Vercel<br>Contact: Mahmoudsalem2080@gmail.com<br><span style="color:#22c55e">V35 - LIVE من SEC مباشر</span></div>
+<h1>⚡ TRUE LIVE SEC V36 SECURE</h1>
+<div class="sub">Vercel Function - SEC EDGAR - Rate Limited<br>Data Source: data.sec.gov/api/xbrl/companyfacts<br><span style="color:#22c55e">Fixed XSS + Latest FY + Frame-based</span></div>
 <div class="card">
-<input id="q" placeholder="AAPL, MSFT, TSLA..." value="AAPL">
+<input id="q" placeholder="AAPL, MSFT, TSLA, NVDA..." value="AAPL" maxlength="10">
 <button id="btn" onclick="search()">🚀 بحث LIVE من SEC</button>
 <div class="quick">
 <span onclick="setQ('AAPL')">AAPL</span><span onclick="setQ('MSFT')">MSFT</span><span onclick="setQ('TSLA')">TSLA</span><span onclick="setQ('NVDA')">NVDA</span>
@@ -38,39 +38,53 @@ pre{background:#020617;padding:10px;border-radius:12px;overflow:auto;font-size:1
 </div>
 <div id="out"></div>
 <div class="card"><canvas id="chart" height="180"></canvas></div>
+<div class="card" style="font-size:10px;color:#64748b"><b>SEC Compliance:</b> User-Agent with contact, max 10 req/s, cache 1h, form=10-K, fp=FY<br>Contact: Mahmoudsalem2080@gmail.com</div>
 </div>
 <script>
+// SECURE: esc defined BEFORE use - fixes XSS
+function esc(s){
+  if(s==null) return '';
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
 let chartInst=null;
 function setQ(v){document.getElementById('q').value=v;search();}
 async function search(){
-const q=document.getElementById('q').value.trim().toUpperCase();
+const raw = document.getElementById('q').value.trim();
+const q = raw.toUpperCase().replace(/[^A-Z0-9.\-]/g,'').slice(0,10); // strict ticker validation
 const out=document.getElementById('out');
 const btn=document.getElementById('btn');
-if(!q)return;
+if(!q){out.innerHTML='<div class=card>ادخل رمز صحيح</div>';return;}
 btn.disabled=true;btn.textContent='⏳ جاري جلب LIVE...';
-out.innerHTML='<div class=card style="text-align:center">⏳ بحاول أجيب '+q+' من SEC...</div>';
+// FIXED XSS: use esc(q)
+out.innerHTML='<div class=card style="text-align:center">⏳ بحاول أجيب '+esc(q)+' من SEC...</div>';
 try{
 const r=await fetch(`/api/company?ticker=${encodeURIComponent(q)}`);
 const j=await r.json();
-if(!j.ok){out.innerHTML=`<div class=card style="color:#ef4444">❌ ${j.error||'غير موجود'}</div>`;btn.disabled=false;btn.textContent='🚀 بحث LIVE من SEC';return;}
-const liveBadge=j.live?'<span class=badge-live>✅ LIVE SEC EDGAR</span>':'<span style="background:#f59e0b;color:#000;padding:4px 10px;border-radius:20px;font-size:11px">📦 Cache</span>';
+if(!j.ok){
+// FIXED XSS: esc error
+out.innerHTML='<div class=card style="color:#ef4444">❌ '+esc(j.error||'غير موجود')+' - جرب AAPL, MSFT, TSLA</div>';btn.disabled=false;btn.textContent='🚀 بحث LIVE من SEC';return;}
+const liveBadge=j.live?'<span class=badge-live>✅ LIVE SEC EDGAR - '+esc(j.latest?.revenue?.end||'')+'</span>':'<span class=badge-cache>📦 Cache</span>';
 const rev=j.latest?.revenue?.value?(j.latest.revenue.value/1e9).toFixed(2):'N/A';
 const inc=j.latest?.netIncome?.value?(j.latest.netIncome.value/1e9).toFixed(2):'N/A';
 const ast=j.latest?.assets?.value?(j.latest.assets.value/1e9).toFixed(2):'N/A';
 const eps=j.latest?.eps?.value?j.latest.eps.value.toFixed(2):'N/A';
-function esc(s){if(!s)return'';return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-out.innerHTML=`<div class=card><div style="text-align:center">${liveBadge}<div style="font-size:18px;font-weight:bold;margin-top:6px">${esc(j.company)} (${esc(j.ticker)})</div><small>CIK: ${esc(j.cik)} | ${esc(j.latest?.revenue?.end||'')}</small></div><div class=grid><div class=kpi><small>💰 الإيرادات</small><b>${rev}B</b></div><div class=kpi><small>📈 صافي الدخل</small><b>${inc}B</b></div><div class=kpi><small>🏦 الأصول</small><b>${ast}B</b></div><div class=kpi><small>💵 EPS</small><b>$${eps}</b></div></div><div style="margin-top:10px"><small>المصدر: ${esc(j.source)}</small></div></div><div class=card><pre>${esc(JSON.stringify(j,null,2))}</pre></div>`;
+const fyEnd=esc(j.latest?.revenue?.end||'');
+const filed=esc(j.latest?.revenue?.filed||'');
+const asOf=esc(j.timestamp||'');
+out.innerHTML='<div class=card><div style="text-align:center">'+liveBadge+'<div style="font-size:18px;font-weight:bold;margin-top:6px">'+esc(j.company)+' ('+esc(j.ticker)+')</div><small>CIK: '+esc(j.cik)+' | FY End: '+fyEnd+' | Filed: '+filed+' | AsOf: '+asOf+'</small></div><div class=grid><div class=kpi><small>💰 الإيرادات FY</small><b>'+esc(rev)+'B</b><small>'+fyEnd+'</small></div><div class=kpi><small>📈 صافي الدخل</small><b>'+esc(inc)+'B</b></div><div class=kpi><small>🏦 الأصول</small><b>'+esc(ast)+'B</b></div><div class=kpi><small>💵 EPS</small><b>$'+esc(eps)+'</b></div></div><div style="margin-top:10px"><small>المصدر: '+esc(j.source)+' | '+esc(j.sec_compliant?.userAgent||'')+'</small></div></div><div class=card><pre>'+esc(JSON.stringify(j,null,2))+'</pre></div>';
 if(j.chart?.revenue_5y?.length){
-const labels=j.chart.revenue_5y.map(x=>x.year);
+const labels=j.chart.revenue_5y.map(x=>esc(x.frame||x.year));
 const values=j.chart.revenue_5y.map(x=>x.value/1e9);
 const ctx=document.getElementById('chart').getContext('2d');
 if(chartInst)chartInst.destroy();
-chartInst=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'الإيرادات (مليار $)',data:values,backgroundColor:'#22c55e'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#94a3b8'}},x:{ticks:{color:'#94a3b8'}}}}});
+chartInst=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'الإيرادات (مليار $) - FY',data:values,backgroundColor:'#22c55e'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#94a3b8'}},x:{ticks:{color:'#94a3b8'}}}}});
 }
-}catch(e){out.innerHTML=`<div class=card style="color:#ef4444">❌ خطأ: ${e.message}<br><small>تأكد أنك رفعت api/company.js</small></div>`;}
+}catch(e){
+// FIXED XSS: esc e.message
+out.innerHTML='<div class=card style="color:#ef4444">❌ خطأ: '+esc(e.message)+'<br><small>تأكد من وجود api/company.js - افتح /api/company?ticker=AAPL مباشر للاختبار</small></div>';}
 btn.disabled=false;btn.textContent='🚀 بحث LIVE من SEC';
 }
 window.onload=()=>search();
 </script>
 </body>
-  </html>
+</html>
