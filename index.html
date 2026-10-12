@@ -1,27 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><style>
-@font-face {
-  font-family: "Optimistic";
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Optimistic Mono";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
-}
-:where(html) {
-  font-family: "Optimistic", system-ui, sans-serif;
-}
-:where(code, pre, kbd, samp) {
-  font-family: "Optimistic Mono", ui-monospace, monospace;
-}
-</style>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TRUE LIVE SEC V41 - Deep Profile Edition</title>
@@ -64,12 +43,10 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 <span class="badge">LIVE - NO DB</span>
 </div>
 </div>
-
 <div class="search-box">
 <input id="q" placeholder="اكتب Tesla, Nvidia, Apple أو TSLA, NVDA, AAPL">
 <button onclick="search()">بحث عميق</button>
 </div>
-
 <div class="chips">
 <div class="chip" onclick="setQ('AAPL')">AAPL Apple</div>
 <div class="chip" onclick="setQ('TSLA')">TSLA Tesla</div>
@@ -78,17 +55,13 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 <div class="chip" onclick="setQ('Tesla')">Tesla الاسم</div>
 <div class="chip" onclick="setQ('Nvidia')">Nvidia الاسم</div>
 </div>
-
 <div id="result"></div>
-
 <div class="footer">
 المرجع: أفكار محمود المحفوظة | نظام: Zero Storage - Fast Fetch - موثوق وقابل للتوسع لكل دولة<br>
 المصادر: SEC.gov فقط - APIs رسمية - User-Agent معتمد
 </div>
 </div>
-
 <script>
-// ===== 1. خريطة الأسماء - قابلة للتوسع لكل دولة =====
 const MAP = {
 "tesla":"TSLA","tesla inc":"TSLA","tesla motors":"TSLA",
 "nvidia":"NVDA","nvidia corp":"NVDA",
@@ -96,8 +69,6 @@ const MAP = {
 "microsoft":"MSFT","google":"GOOGL","alphabet":"GOOGL",
 "amazon":"AMZN","meta":"META","facebook":"META","netflix":"NFLX"
 };
-
-// ===== 2. محرك المصادر الموثوق - قابل للتوسع لكل دولة =====
 const SOURCES = {
   US: {
     name: "United States - SEC",
@@ -106,23 +77,17 @@ const SOURCES = {
       tickers: "https://www.sec.gov/files/company_tickers.json",
       submissions: (cik) => `https://data.sec.gov/submissions/CIK${cik.padStart(10,'0')}.json`,
       facts: (cik) => `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik.padStart(10,'0')}.json`,
-      companyfacts: "SEC EDGAR Company Facts API - Official"
     },
     headers: { "User-Agent": "TRUE LIVE SEC V41 contact@truelivesec.com", "Accept": "application/json" }
   }
-  // مستقبلاً: EG: { Egyptian Exchange }, SA: { Tadawul }, AE: { ADX } بنفس النمط
 };
-
 function setQ(v){document.getElementById('q').value=v; search();}
-
 async function search(){
   let raw = document.getElementById('q').value.trim().toLowerCase();
   if(!raw) return;
   let ticker = MAP[raw] || raw.toUpperCase();
   document.getElementById('result').innerHTML = `<div class="card">🔍 جاري الجلب المتوازي من 3 مصادر موثوقة لـ ${ticker}...<br><small>SEC المالية + SEC البطاقة + SEC الحيتان - بدون تخزين</small></div>`;
-
   try{
-    // الخطوة 1: جلب CIK من tickers.json (المصدر الأساسي الموثوق)
     const tickRes = await fetch(SOURCES.US.endpoints.tickers, {headers: SOURCES.US.headers});
     const tickData = await tickRes.json();
     let company = null;
@@ -130,32 +95,24 @@ async function search(){
       if(tickData[k].ticker === ticker){ company = tickData[k]; break; }
     }
     if(!company) throw new Error("Ticker غير موجود في SEC الرسمي");
-
     let cik = String(company.cik_str);
-    let cik10 = cik.padStart(10,'0');
-
-    // الخطوة 2: جلب متوازي من 3 مصادر في نفس اللحظة (Zero Storage)
     const [subRes, factRes] = await Promise.all([
       fetch(SOURCES.US.endpoints.submissions(cik), {headers: SOURCES.US.headers}),
       fetch(SOURCES.US.endpoints.facts(cik), {headers: SOURCES.US.headers})
     ]);
-
     const subData = await subRes.json();
     const factData = await factRes.json();
-
-    // استخراج البيانات العميقة
     const profile = {
       name: subData.name,
       ticker: company.ticker,
       cik: cik,
       website: subData.website || "غير متاح في SEC",
       phone: subData.phone || "غير متاح",
-      address: subData.addresses?.mailing ? `${subData.addresses.mailing.city}, ${subData.addresses.mailing.state}` : "USA",
+      address: subData.addresses?.mailing? `${subData.addresses.mailing.city}, ${subData.addresses.mailing.state}` : "USA",
       employees: extractFact(factData, "Employees") || extractFact(factData, "NumberOfEmployees") || "من 10-K",
       sic: subData.sicDescription,
       fiscalYearEnd: subData.fiscalYearEnd
     };
-
     const financials = {
       revenue: extractLatest(factData, "Revenues") || extractLatest(factData, "RevenueFromContractWithCustomerExcludingAssessedTax") || extractLatest(factData, "SalesRevenueNet"),
       netIncome: extractLatest(factData, "NetIncomeLoss"),
@@ -164,98 +121,11 @@ async function search(){
       cash: extractLatest(factData, "CashAndCashEquivalentsAtCarryingValue"),
       debt: extractLatest(factData, "LongTermDebt")
     };
-
     render(ticker, profile, financials, subData);
-
   }catch(e){
     document.getElementById('result').innerHTML = `<div class="card" style="border-color:#ff4444">❌ خطأ: ${e.message}<br><small>تأكد من أن SEC متاح - المصدر الرسمي يتطلب User-Agent</small></div>`;
   }
 }
-
 function extractLatest(factData, tag){
   try{
-    const units = factData.facts?.["us-gaap"]?.[tag]?.units?.USD || factData.facts?.["us-gaap"]?.[tag]?.units?.shares || [];
-    if(!units.length) return null;
-    const sorted = units.sort((a,b)=> new Date(b.end) - new Date(a.end));
-    return {val: sorted[0].val, end: sorted[0].end, form: sorted[0].form};
-  }catch{return null}
-}
-function extractFact(factData, tag){
-  const v = extractLatest(factData, tag);
-  return v ? v.val : null;
-}
-
-function render(ticker, p, f, subData){
-  const fmt = (o)=> o ? `$${(o.val/1e9).toFixed(2)}B <small>(${o.end} - ${o.form})</small>` : "N/A";
-  const html = `
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('profile')">🏢 البطاقة العميقة</div>
-    <div class="tab" onclick="showTab('financial')">💰 المالية العميقة</div>
-    <div class="tab" onclick="showTab('expansion')">🌍 الانتشار</div>
-    <div class="tab" onclick="showTab('sources')">🔗 المصادر الموثوقة</div>
-  </div>
-
-  <div id="tab-profile" class="card">
-    <h3>🏢 ملف ${p.name} (${ticker}) - بطاقة عميقة <span class="source-tag">المصدر: SEC Submissions 10/10</span></h3>
-    <div class="grid">
-      <div class="item"><b>الموقع الرسمي</b><span>${p.website}</span></div>
-      <div class="item"><b>التليفون</b><span>${p.phone}</span></div>
-      <div class="item"><b>العنوان</b><span>${p.address}</span></div>
-      <div class="item"><b>التصنيف</b><span>${p.sic}</span></div>
-      <div class="item"><b>عدد الموظفين</b><span>${p.employees} (من 10-K)</span></div>
-      <div class="item"><b>CIK</b><span>${p.cik}</span></div>
-      <div class="item"><b>نهاية السنة المالية</b><span>${p.fiscalYearEnd}</span></div>
-      <div class="item"><b>آخر تقديم SEC</b><span>${subData.filings?.recent?.filingDate?.[0] || 'N/A'}</span></div>
-    </div>
-  </div>
-
-  <div id="tab-financial" class="card hidden">
-    <h3>💰 المالية العميقة - 6 مؤشرات <span class="source-tag">المصدر: SEC CompanyFacts 10/10</span></h3>
-    <div class="grid">
-      <div class="item"><b>Revenue الإيرادات</b><span>${fmt(f.revenue)}</span></div>
-      <div class="item"><b>Net Income صافي الدخل</b><span>${fmt(f.netIncome)}</span></div>
-      <div class="item"><b>EPS ربحية السهم</b><span>${f.eps ? f.eps.val : 'N/A'}</span></div>
-      <div class="item"><b>Assets الأصول</b><span>${fmt(f.assets)}</span></div>
-      <div class="item"><b>Cash الكاش</b><span>${fmt(f.cash)}</span></div>
-      <div class="item"><b>Debt الديون طويلة الأجل</b><span>${fmt(f.debt)}</span></div>
-    </div>
-  </div>
-
-  <div id="tab-expansion" class="card hidden">
-    <h3>🌍 الانتشار والكمية - جاهز للتوسع <span class="source-tag">المصدر: 10-K Item 1 Business</span></h3>
-    <div class="item" style="grid-column:1/-1">
-      <b>هذه البيانات العميقة (جغرافيا و قطاعات) موجودة في 10-K ونقدر نجيبها في V42:</b><br>
-      - Revenue by Geography: أمريكا % - الصين % - أوروبا %<br>
-      - Revenue by Segment: iPhone 52% - Services 22% (لـ Apple)<br>
-      - عدد المصانع والفروع والأسواق (52 دولة لـ Tesla)<br>
-      - براءات الاختراع (USPTO - مصدر 10/10 تاني)
-    </div>
-  </div>
-
-  <div id="tab-sources" class="card hidden">
-    <h3>🔗 خريطة المصادر الموثوقة - قابلة للتكرار لكل دولة</h3>
-    <div class="item" style="grid-column:1/-1">
-      <b>USA (نفذنا):</b><br>
-      1. SEC EDGAR CompanyFacts - مالية - 10/10 - https://data.sec.gov/api/xbrl/companyfacts/<br>
-      2. SEC Submissions - بطاقة - 10/10 - https://data.sec.gov/submissions/<br>
-      3. SEC Tickers - ربط - 10/10 - https://www.sec.gov/files/company_tickers.json<br><br>
-      <b>نفس النمط لأي دولة:</b><br>
-      مصر: EGX + الرقابة المالية (FRA) - نفس 3 روابط<br>
-      السعودية: تداول Tadawul API<br>
-      الإمارات: ADX + SCA<br>
-      كل دولة = 3 endpoints + User-Agent + Parallel Fetch + Zero Storage
-    </div>
-  </div>
-  `;
-  document.getElementById('result').innerHTML = html;
-}
-
-function showTab(name){
-  document.querySelectorAll('[id^=tab-]').forEach(e=>e.classList.add('hidden'));
-  document.getElementById('tab-'+name).classList.remove('hidden');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  event.target.classList.add('active');
-}
-</script>
-<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
-</html>
+    const units = factData.facts?.["us-gaap"]?.[tag]?.units?.USD
