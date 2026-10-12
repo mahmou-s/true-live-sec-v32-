@@ -44,15 +44,15 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 </div>
 </div>
 <div class="search-box">
-<input id="q" placeholder="اكتب 【entity-Tesla¦canonical_name=Tesla】, 【entity-Nvidia¦canonical_name=Nvidia】, Apple أو TSLA, NVDA, AAPL">
+<input id="q" placeholder="اكتب 【entity-Tesla¦canonical_name=Tesla】, 【entity-Nvidia¦canonical_name=Nvidia】, 【entity-Apple¦canonical_name=Apple】 أو TSLA, NVDA, AAPL">
 <button onclick="search()">بحث عميق</button>
 </div>
 <div class="chips">
-<div class="chip" onclick="setQ('AAPL')">AAPL Apple</div>
+<div class="chip" onclick="setQ('AAPL')">AAPL 【entity-Apple¦canonical_name=Apple】</div>
 <div class="chip" onclick="setQ('TSLA')">TSLA 【entity-Tesla¦canonical_name=Tesla】</div>
 <div class="chip" onclick="setQ('NVDA')">NVDA 【entity-Nvidia¦canonical_name=Nvidia】</div>
-<div class="chip" onclick="setQ('MSFT')">MSFT Microsoft</div>
-<div class="chip" onclick="setQ('【entity-Tesla¦canonical_name=Tesla】')">【entity-【entity-Tesla¦canonical_name=Tesla】¦canonical_name=【entity-Tesla¦canonical_name=Tesla】】 الاسم</div>
+<div class="chip" onclick="setQ('MSFT')">【entity-MSFT Microsoft¦canonical_name=Microsoft】</div>
+<div class="chip" onclick="setQ('【entity-Tesla¦canonical_name=Tesla】')">【entity-Tesla¦canonical_name=Tesla】 الاسم</div>
 <div class="chip" onclick="setQ('【entity-Nvidia¦canonical_name=Nvidia】')">【entity-Nvidia¦canonical_name=Nvidia】 الاسم</div>
 </div>
 <div id="result"></div>
@@ -63,7 +63,7 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 </div>
 <script>
 const MAP = {
-"【entity-tesla¦canonical_name=Tesla】":"TSLA","【entity-tesla¦canonical_name=Tesla】 inc":"TSLA","【entity-tesla¦canonical_name=Tesla】 motors":"TSLA",
+"tesla":"TSLA","tesla inc":"TSLA","tesla motors":"TSLA",
 "nvidia":"NVDA","nvidia corp":"NVDA",
 "apple":"AAPL","apple inc":"AAPL",
 "microsoft":"MSFT","google":"GOOGL","alphabet":"GOOGL",
@@ -102,7 +102,7 @@ async function search(){
     ]);
     const subData = await subRes.json();
     const factData = await factRes.json();
-    const profile = {
+        const profile = {
       name: subData.name,
       ticker: company.ticker,
       cik: cik,
@@ -132,4 +132,75 @@ function extractLatest(factData, tag){
     if(!units.length) return null;
     const sorted = units.sort((a,b)=> new Date(b.end) - new Date(a.end));
     return {val: sorted[0].val, end: sorted[0].end, form: sorted[0].form};
-  }catch
+  }catch{return null}
+}
+function extractFact(factData, tag){
+  const v = extractLatest(factData, tag);
+  return v? v.val : null;
+}
+function render(ticker, p, f, subData){
+  const fmt = (o)=> o? `$${(o.val/1e9).toFixed(2)}B <small>(${o.end} - ${o.form})</small>` : "N/A";
+  const html = `
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('profile')">🏢 البطاقة العميقة</div>
+    <div class="tab" onclick="showTab('financial')">💰 المالية العميقة</div>
+    <div class="tab" onclick="showTab('expansion')">🌍 الانتشار</div>
+    <div class="tab" onclick="showTab('sources')">🔗 المصادر الموثوقة</div>
+  </div>
+  <div id="tab-profile" class="card">
+    <h3>🏢 ملف ${p.name} (${ticker}) - بطاقة عميقة <span class="source-tag">المصدر: SEC Submissions 10/10</span></h3>
+    <div class="grid">
+      <div class="item"><b>الموقع الرسمي</b><span>${p.website}</span></div>
+      <div class="item"><b>التليفون</b><span>${p.phone}</span></div>
+      <div class="item"><b>العنوان</b><span>${p.address}</span></div>
+          const profile = {
+      name: subData.name,
+      ticker: company.ticker,
+      cik: cik,
+      website: subData.website || "غير متاح في SEC",
+      phone: subData.phone || "غير متاح",
+      address: subData.addresses?.mailing? `${subData.addresses.mailing.city}, ${subData.addresses.mailing.state}` : "USA",
+      employees: extractFact(factData, "Employees") || extractFact(factData, "NumberOfEmployees") || "من 10-K",
+      sic: subData.sicDescription,
+      fiscalYearEnd: subData.fiscalYearEnd
+    };
+    const financials = {
+      revenue: extractLatest(factData, "Revenues") || extractLatest(factData, "RevenueFromContractWithCustomerExcludingAssessedTax") || extractLatest(factData, "SalesRevenueNet"),
+      netIncome: extractLatest(factData, "NetIncomeLoss"),
+      eps: extractLatest(factData, "EarningsPerShareBasic"),
+      assets: extractLatest(factData, "Assets"),
+      cash: extractLatest(factData, "CashAndCashEquivalentsAtCarryingValue"),
+      debt: extractLatest(factData, "LongTermDebt")
+    };
+    render(ticker, profile, financials, subData);
+  }catch(e){
+    document.getElementById('result').innerHTML = `<div class="card" style="border-color:#ff4444">❌ خطأ: ${e.message}<br><small>تأكد من أن SEC متاح - المصدر الرسمي يتطلب User-Agent</small></div>`;
+  }
+}
+function extractLatest(factData, tag){
+  try{
+    const units = factData.facts?.["us-gaap"]?.[tag]?.units?.USD || factData.facts?.["us-gaap"]?.[tag]?.units?.shares || [];
+    if(!units.length) return null;
+    const sorted = units.sort((a,b)=> new Date(b.end) - new Date(a.end));
+    return {val: sorted[0].val, end: sorted[0].end, form: sorted[0].form};
+  }catch{return null}
+}
+function extractFact(factData, tag){
+  const v = extractLatest(factData, tag);
+  return v? v.val : null;
+}
+function render(ticker, p, f, subData){
+  const fmt = (o)=> o? `$${(o.val/1e9).toFixed(2)}B <small>(${o.end} - ${o.form})</small>` : "N/A";
+  const html = `
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('profile')">🏢 البطاقة العميقة</div>
+    <div class="tab" onclick="showTab('financial')">💰 المالية العميقة</div>
+    <div class="tab" onclick="showTab('expansion')">🌍 الانتشار</div>
+    <div class="tab" onclick="showTab('sources')">🔗 المصادر الموثوقة</div>
+  </div>
+  <div id="tab-profile" class="card">
+    <h3>🏢 ملف ${p.name} (${ticker}) - بطاقة عميقة <span class="source-tag">المصدر: SEC Submissions 10/10</span></h3>
+    <div class="grid">
+      <div class="item"><b>الموقع الرسمي</b><span>${p.website}</span></div>
+      <div class="item"><b>التليفون</b><span>${p.phone}</span></div>
+      <div class="item"><b>العنوان</b><span>${p.address}</span></div>
