@@ -1,91 +1,126 @@
-// api/company.js — TRUE LIVE SEC (Vercel Node function)
-// Env var required: SEC_CONTACT = "Your Name your@email.com"  (SEC fair-access policy)
-
-const DAY = 864e5;
-const TICKERS_TTL = DAY;           // refresh the SEC ticker list daily
-const STALE_AFTER_DAYS = 460;      // latest annual report older than this => stale
-let tickers = null, tickersAt = 0; // per-instance cache
-
-async function sec(url) {
-  const contact = process.env.SEC_CONTACT;
-  if (!contact) throw new Error('SEC_CONTACT env var missing');
-  const r = await fetch(url, {
-    headers: { 'User-Agent': contact, Accept: 'application/json' },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!r.ok) throw new Error('SEC responded ' + r.status);
-  return r.json();
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
 }
-
-async function getTickers() {
-  if (tickers && Date.now() - tickersAt < TICKERS_TTL) return tickers;
-  const raw = await sec('https://www.sec.gov/files/company_tickers.json');
-  tickers = new Map(Object.values(raw).map((r) => [String(r.ticker).toUpperCase(), r]));
-  tickersAt = Date.now();
-  return tickers;
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
 }
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
+</style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRUE LIVE SEC V39 - LIVE VERIFIED</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#020617;color:#fff;font-family:system-ui;padding:12px}
+.wrap{max-width:900px;margin:0 auto}h1{text-align:center;color:#22c55e;margin:8px 0}
+.sub{text-align:center;color:#94a3b8;font-size:12px;margin-bottom:12px}
+.card{background:#1e293b;border-radius:20px;padding:18px;border:1px solid #334155;margin-bottom:12px}
+input{width:100%;background:#0f172a;border:2px solid #334155;border-radius:14px;padding:14px;font-size:18px;color:#fff;text-align:center;direction:ltr}
+button{width:100%;background:#22c55e;color:#000;border:0;padding:14px;border-radius:14px;font-weight:700;margin-top:10px;font-size:16px}
+button:disabled{opacity:.5}
+.quick{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.quick span{background:#334155;padding:7px 13px;border-radius:20px;font-size:14px;cursor:pointer}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;color:#000}
+.live{background:#22c55e}.warn{background:#f59e0b}.err{color:#ef4444}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.kpi{background:#020617;padding:10px;border-radius:12px;text-align:center}
+.kpi small{color:#94a3b8;display:block}.kpi b{color:#22c55e;font-size:18px;display:block;direction:ltr}
+.meta{color:#94a3b8;font-size:12px;margin-top:8px}
+.changelog{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px;margin-bottom:12px}
+.changelog h3{font-size:12px;color:#22c55e;margin:0 0 6px}
+.changelog ul{font-size:11px;color:#94a3b8;line-height:1.7;margin:0 16px 0 0}
+a{color:#60a5fa;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>⚡ TRUE LIVE SEC V39</h1>
+<div class="sub">بيانات سنوية (10-K) من SEC EDGAR - LIVE VERIFIED - V39 FINAL</div>
 
-// Annual (10-K, FY) values only, merged across tags, one per period end, newest first.
-// Duration filter drops the quarterly figures that 10-K filings also carry under fp=FY.
-function annual(facts, tags, unit = 'USD', instant = false) {
-  const byEnd = new Map();
-  for (const tag of tags) {
-    for (const x of facts.facts?.['us-gaap']?.[tag]?.units?.[unit] || []) {
-      if (x.form !== '10-K' || x.fp !== 'FY' || !x.end) continue;
-      if (!instant) {
-        if (!x.start) continue;
-        const d = (new Date(x.end) - new Date(x.start)) / DAY;
-        if (d < 350 || d > 380) continue; // covers 52/53-week years
-      }
-      const prev = byEnd.get(x.end);
-      if (!prev || x.filed > prev.filed) byEnd.set(x.end, x);
+<div class="changelog">
+<h3>✅ V39 - معيار القبول (Claude)</h3>
+<ul>
+<li>AAPL: asOf=2025-09-27, 10-K, revenue 416.16B, netIncome/assets/EPS نفس التاريخ, EPS not null</li>
+<li>NVDA: 2026-01-25 بلا تكرار, 60.922B FY2024</li>
+<li>MSFT: 2026-06-30 (ليس 2010)</li>
+<li>الرسم 5 نقاط سنوية فريدة, duration filter 350-380 يوم</li>
+<li>Cache s-maxage=3600, LIVE = !stale && complete (15 شهر)</li>
+</ul>
+<div style="margin-top:8px;font-size:11px">روابط مباشرة (cache-busted):
+<a href="/api/company?ticker=AAPL&v=39" target="_blank">AAPL&v=39</a> ·
+<a href="/api/company?ticker=NVDA&v=39" target="_blank">NVDA&v=39</a> ·
+<a href="/api/company?ticker=MSFT&v=39" target="_blank">MSFT&v=39</a>
+</div>
+</div>
+
+<div class="card">
+<input id="q" value="AAPL" maxlength="10" autocomplete="off" placeholder="AAPL">
+<button id="go" onclick="search()">🔍 بحث LIVE V39</button>
+<div class="quick" id="quick"></div>
+</div>
+<div id="out"></div>
+<div class="card" id="chartCard" hidden><canvas id="chart" height="180"></canvas></div>
+<div class="sub">للأغراض المعلوماتية فقط، وليست نصيحة استثمارية. Source: SEC EDGAR (XBRL companyfacts) - Cache 3600</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>s==null?'':String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const fmtB=x=>x&&x.value!=null?(x.value/1e9).toFixed(2)+'B':'N/A';
+let seq=0,chart=null;
+['AAPL','MSFT','TSLA','NVDA','GOOGL','AMZN','META','NFLX'].forEach(t=>{
+  const s=document.createElement('span');s.textContent=t;s.onclick=()=>{$('q').value=t;search();};$('quick').appendChild(s);
+});
+async function search(){
+  const raw=$('q').value.trim().toUpperCase();
+  const q=raw.replace(/[^A-Z0-9.\-]/g,'').slice(0,10);
+  const out=$('out'),btn=$('go');
+  if(!q||q!==raw){out.innerHTML='<div class="card err">❌ رمز غير صالح</div>';return;}
+  const my=++seq;btn.disabled=true;
+  out.innerHTML='<div class="card">⏳ '+esc(q)+' من SEC... (V39 LIVE)</div>';
+  try{
+    const r=await fetch('/api/company?ticker='+encodeURIComponent(q)+'&v=39&_='+Date.now());
+    const j=await r.json().catch(()=>({ok:false,error:'رد غير صالح'}));
+    if(my!==seq)return;
+    if(!r.ok||!j.ok){out.innerHTML='<div class="card err">❌ '+esc(j.error||'غير موجود')+'</div>';$('chartCard').hidden=true;return;}
+    const L=j.latest||{};
+    const badge=j.live?'<span class="badge live">✅ LIVE - '+esc(j.asOf)+'</span>'
+      :'<span class="badge warn">⚠️ '+(j.stale?'آخر تقرير قديم ('+esc(j.asOf)+')':'بيانات ناقصة')+'</span>';
+    const eps=L.eps&&L.eps.value!=null?'$'+Number(L.eps.value).toFixed(2):'N/A';
+    out.innerHTML='<div class="card">'+badge+'<div style="margin-top:8px;font-size:18px">'+esc(j.company)+' ('+esc(j.ticker)+')</div>'
+      +'<div class="meta">نهاية السنة المالية: '+esc(j.asOf||'—')+' · CIK '+esc(j.cik)+' · form: '+(L.revenue?.form||'10-K')+' · filed: '+(L.revenue?.filed||'')+'</div>'
+      +'<div class="grid">'
+      +'<div class="kpi"><small>الإيرادات</small><b>'+esc(fmtB(L.revenue))+'</b><small>'+esc(L.revenue?.end||'')+'</small></div>'
+      +'<div class="kpi"><small>صافي الدخل</small><b>'+esc(fmtB(L.netIncome))+'</b><small>'+esc(L.netIncome?.end||'')+'</small></div>'
+      +'<div class="kpi"><small>الأصول</small><b>'+esc(fmtB(L.assets))+'</b><small>'+esc(L.assets?.end||'')+'</small></div>'
+      +'<div class="kpi"><small>ربحية السهم (مخففة)</small><b>'+esc(eps)+'</b><small>'+esc(L.eps?.end||'')+'</small></div></div>'
+      +'<div class="meta">'+esc(j.source)+' · جُلبت '+esc(j.fetchedAt)+' · v39</div></div>';
+    const s=(j.chart&&j.chart.revenue_5y)||[];
+    $('chartCard').hidden=!(s.length&&window.Chart);
+    if(s.length&&window.Chart){
+      if(chart)chart.destroy();
+      chart=new Chart($('chart'),{type:'bar',
+        data:{labels:s.map(x=>String(x.year)),datasets:[{label:'الإيرادات (مليار $)',data:s.map(x=>Number(x.value)/1e9),backgroundColor:'#22c55e'}]},
+        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
     }
-  }
-  return [...byEnd.values()].sort((a, b) => (a.end < b.end ? 1 : -1));
+  }catch(e){if(my===seq)out.innerHTML='<div class="card err">❌ تعذّر الاتصال: '+esc(e.message)+'</div>';}
+  finally{if(my===seq)btn.disabled=false;}
 }
-
-const pick = (s) => (s[0] ? { value: s[0].val, end: s[0].end, filed: s[0].filed, form: s[0].form } : null);
-
-export default async function handler(req, res) {
-  const q = String(req.query.ticker || '').toUpperCase().trim().replace(/\./g, '-');
-  if (!/^[A-Z][A-Z0-9-]{0,9}$/.test(q)) return res.status(400).json({ ok: false, error: 'Invalid ticker' });
-
-  try {
-    const map = await getTickers();
-    const row = map.get(q);
-    if (!row) return res.status(404).json({ ok: false, error: 'Not found' });
-
-    const cik = String(row.cik_str).padStart(10, '0');
-    const facts = await sec(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`);
-
-    const rev = annual(facts, ['RevenueFromContractWithCustomerExcludingAssessedTax', 'Revenues', 'SalesRevenueNet']);
-    const net = annual(facts, ['NetIncomeLoss', 'ProfitLoss']);
-    const assets = annual(facts, ['Assets'], 'USD', true);
-    const eps = annual(facts, ['EarningsPerShareDiluted', 'EarningsPerShareBasic'], 'USD/shares');
-
-    const asOf = rev[0]?.end || null;
-    const stale = !asOf || (Date.now() - new Date(asOf)) / DAY > STALE_AFTER_DAYS;
-    const latest = { revenue: pick(rev), netIncome: pick(net), assets: pick(assets), eps: pick(eps) };
-    const complete = Object.values(latest).every(Boolean);
-
-    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
-    return res.status(200).json({
-      ok: true,
-      live: !stale && complete, // fresh annual data from SEC and all four figures present
-      stale,
-      asOf,
-      source: 'SEC EDGAR (XBRL companyfacts)',
-      fetchedAt: new Date().toISOString(),
-      cik,
-      ticker: row.ticker,
-      company: facts.entityName || row.title,
-      latest,
-      chart: {
-        revenue_5y: rev.slice(0, 5).reverse().map((r) => ({ year: r.end.slice(0, 4), end: r.end, value: r.val })),
-      },
-    });
-  } catch (e) {
-    console.error(e);
-    return res.status(502).json({ ok: false, error: 'SEC unavailable, try again later' });
-  }
-}
+window.onload=()=>search();
+</script>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
+</html>
