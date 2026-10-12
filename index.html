@@ -204,3 +204,21 @@ function render(ticker, p, f, subData){
       <div class="item"><b>الموقع الرسمي</b><span>${p.website}</span></div>
       <div class="item"><b>التليفون</b><span>${p.phone}</span></div>
       <div class="item"><b>العنوان</b><span>${p.address}</span></div>
+            <b>نفس النمط لأي دولة:</b><br>
+      مصر: EGX + الرقابة المالية<br>
+      السعودية: تداول Tadawul API<br>
+      الإمارات: ADX + SCA
+    </div>
+  </div>
+  `;
+  document.getElementById('result').innerHTML = html;
+}
+function showTab(name){
+  document.querySelectorAll('[id^=tab-]').forEach(e=>e.classList.add('hidden'));
+  document.getElementById('tab-'+name).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
