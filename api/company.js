@@ -1,146 +1,91 @@
-// api/company.js - V38 LIVE REAL - يصلح مشكلة Concept القديم
-// Apple: Revenues (قديم حتى 2018) + RevenueFromContract... (جديد حتى 2024)
-// الحل: دمج كل المفاهيم وأخذ الأحدث
+// api/company.js — TRUE LIVE SEC (Vercel Node function)
+// Env var required: SEC_CONTACT = "Your Name your@email.com"  (SEC fair-access policy)
 
-const CONTACT = 'Mahmoudsalem2080@gmail.com';
-const UA = `TrueLiveSEC/1.0 ${CONTACT}`;
+const DAY = 864e5;
+const TICKERS_TTL = DAY;           // refresh the SEC ticker list daily
+const STALE_AFTER_DAYS = 460;      // latest annual report older than this => stale
+let tickers = null, tickersAt = 0; // per-instance cache
 
-let tickersCache = null;
-let tickersTime = 0;
+async function sec(url) {
+  const contact = process.env.SEC_CONTACT;
+  if (!contact) throw new Error('SEC_CONTACT env var missing');
+  const r = await fetch(url, {
+    headers: { 'User-Agent': contact, Accept: 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error('SEC responded ' + r.status);
+  return r.json();
+}
+
 async function getTickers() {
-  if (tickersCache && Date.now() - tickersTime < 86400000) return tickersCache;
-  const r = await fetch('https://www.sec.gov/files/company_tickers.json', { headers: { 'User-Agent': UA }});
-  if (!r.ok) throw new Error('SEC tickers failed: ' + r.status);
-  const j = await r.json(); tickersCache = j; tickersTime = Date.now(); return j;
+  if (tickers && Date.now() - tickersAt < TICKERS_TTL) return tickers;
+  const raw = await sec('https://www.sec.gov/files/company_tickers.json');
+  tickers = new Map(Object.values(raw).map((r) => [String(r.ticker).toUpperCase(), r]));
+  tickersAt = Date.now();
+  return tickers;
 }
 
-function getFactsForConcept(facts, concept) {
-  const usd = facts.facts?.['us-gaap']?.[concept]?.units?.USD;
-  if (!usd || usd.length === 0) return [];
-  return [...usd].sort((a, b) => new Date(b.end) - new Date(a.end)); // DESC
-}
-
-function getAnnualRevenueSeriesV38(facts) {
-  // V38: جرب كل المفاهيم وادمجهم - الأحدث أولاً
-  const concepts = [
-    'RevenueFromContractWithCustomerExcludingAssessedTax', // الأحدث - Apple, MSFT يستخدمونه
-    'SalesRevenueNet', // ثاني
-    'Revenues' // الأقدم
-  ];
-
-  let allItems = [];
-  for (let c of concepts) {
-    const series = getFactsForConcept(facts, c);
-    if (series.length > 0) {
-      // أضف مع اسم المفهوم
-      for (let s of series) {
-        allItems.push({ ...s, _concept: c });
-      }
-    }
-  }
-
-  if (allItems.length === 0) return [];
-
-  // فلتر 10-K + FY
-  let filtered = allItems.filter(x => x.form === '10-K' && x.fp === 'FY');
-  if (filtered.length < 3) filtered = allItems.filter(x => x.form === '10-K');
-  if (filtered.length < 3) filtered = allItems;
-
-  // رتب DESC مرة أخرى بعد الدمج
-  filtered.sort((a, b) => new Date(b.end) - new Date(a.end));
-
-  // إزالة التكرار حسب end - احتفظ بالأحدث filed
+// Annual (10-K, FY) values only, merged across tags, one per period end, newest first.
+// Duration filter drops the quarterly figures that 10-K filings also carry under fp=FY.
+function annual(facts, tags, unit = 'USD', instant = false) {
   const byEnd = new Map();
-  for (const item of filtered) {
-    if (!item.end) continue;
-    const key = item.end;
-    const existing = byEnd.get(key);
-    if (!existing) {
-      byEnd.set(key, item);
-    } else {
-      // احتفظ بالأكبر قيمة (الإيرادات الحقيقية) أو الأحدث filed
-      if ((item.val || 0) > (existing.val || 0)) {
-        byEnd.set(key, item);
+  for (const tag of tags) {
+    for (const x of facts.facts?.['us-gaap']?.[tag]?.units?.[unit] || []) {
+      if (x.form !== '10-K' || x.fp !== 'FY' || !x.end) continue;
+      if (!instant) {
+        if (!x.start) continue;
+        const d = (new Date(x.end) - new Date(x.start)) / DAY;
+        if (d < 350 || d > 380) continue; // covers 52/53-week years
       }
+      const prev = byEnd.get(x.end);
+      if (!prev || x.filed > prev.filed) byEnd.set(x.end, x);
     }
   }
-
-  let unique = Array.from(byEnd.values()).sort((a, b) => new Date(b.end) - new Date(a.end));
-  
-  // خد آخر 5 سنوات حقيقية (2020-2024)
-  unique = unique.slice(0, 5);
-
-  return unique; // [0] = 2024-09-28
+  return [...byEnd.values()].sort((a, b) => (a.end < b.end ? 1 : -1));
 }
+
+const pick = (s) => (s[0] ? { value: s[0].val, end: s[0].end, filed: s[0].filed, form: s[0].form } : null);
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60'); // 10 ثواني فقط عشان الاختبار
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  
-  let q = (req.query.ticker || '').toString().toUpperCase().trim().replace(/[^A-Z0-9.\-]/g, '').slice(0, 10);
-  if (!q || !/^[A-Z]/.test(q)) return res.status(400).json({ ok: false, error: 'Invalid ticker' });
+  const q = String(req.query.ticker || '').toUpperCase().trim().replace(/\./g, '-');
+  if (!/^[A-Z][A-Z0-9-]{0,9}$/.test(q)) return res.status(400).json({ ok: false, error: 'Invalid ticker' });
 
   try {
-    const tickers = await getTickers();
-    let found = null; const qL = q.toLowerCase();
-    for (const k in tickers) { if (tickers[k].ticker.toLowerCase() === qL) { found = tickers[k]; break; } }
-    if (!found) return res.status(404).json({ ok: false, error: 'Ticker not found' });
+    const map = await getTickers();
+    const row = map.get(q);
+    if (!row) return res.status(404).json({ ok: false, error: 'Not found' });
 
-    const cik = String(found.cik_str).padStart(10, '0');
-    const fr = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, { headers: { 'User-Agent': UA, 'Accept': 'application/json', 'Host': 'data.sec.gov' } });
-    if (!fr.ok) return res.status(200).json({ ok: true, live: false, cik, ticker: found.ticker });
+    const cik = String(row.cik_str).padStart(10, '0');
+    const facts = await sec(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`);
 
-    const facts = await fr.json();
+    const rev = annual(facts, ['RevenueFromContractWithCustomerExcludingAssessedTax', 'Revenues', 'SalesRevenueNet']);
+    const net = annual(facts, ['NetIncomeLoss', 'ProfitLoss']);
+    const assets = annual(facts, ['Assets'], 'USD', true);
+    const eps = annual(facts, ['EarningsPerShareDiluted', 'EarningsPerShareBasic'], 'USD/shares');
 
-    const revenueSeries = getAnnualRevenueSeriesV38(facts);
-    const netSeries = getFactsForConcept(facts, 'NetIncomeLoss').filter(x => x.form === '10-K');
-    const assetsSeries = getFactsForConcept(facts, 'Assets');
-    const epsSeries = getFactsForConcept(facts, 'EarningsPerShareDiluted').length ? getFactsForConcept(facts, 'EarningsPerShareDiluted') : getFactsForConcept(facts, 'EarningsPerShareBasic');
+    const asOf = rev[0]?.end || null;
+    const stale = !asOf || (Date.now() - new Date(asOf)) / DAY > STALE_AFTER_DAYS;
+    const latest = { revenue: pick(rev), netIncome: pick(net), assets: pick(assets), eps: pick(eps) };
+    const complete = Object.values(latest).every(Boolean);
 
-    const latestRev = revenueSeries[0] || null;
-
-    const isRecent = latestRev && new Date(latestRev.end) >= new Date('2023-01-01');
-
-    const chartData = [...revenueSeries].reverse().map(r => ({
-      year: r.end.slice(0, 4),
-      end: r.end,
-      value: r.val,
-      form: r.form,
-      frame: r.frame,
-      fp: r.fp,
-      concept: r._concept
-    }));
-
+    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
     return res.status(200).json({
       ok: true,
-      live: !!(isRecent),
-      live_reason: latestRev ? `LIVE FY ${latestRev.end} via ${latestRev._concept} - ${latestRev.frame}` : 'no data',
-      source: 'SEC EDGAR LIVE V38 - merged concepts',
+      live: !stale && complete, // fresh annual data from SEC and all four figures present
+      stale,
+      asOf,
+      source: 'SEC EDGAR (XBRL companyfacts)',
+      fetchedAt: new Date().toISOString(),
       cik,
-      cik_num: found.cik_str,
-      ticker: found.ticker,
-      company: facts.entityName || found.title,
-      latest: {
-        revenue: latestRev ? { value: latestRev.val, end: latestRev.end, form: latestRev.form, filed: latestRev.filed, frame: latestRev.frame, fp: latestRev.fp, concept: latestRev._concept } : null,
-        netIncome: netSeries[0] ? { value: netSeries[0].val, end: netSeries[0].end } : null,
+      ticker: row.ticker,
+      company: facts.entityName || row.title,
+      latest,
+      chart: {
+        revenue_5y: rev.slice(0, 5).reverse().map((r) => ({ year: r.end.slice(0, 4), end: r.end, value: r.val })),
       },
-      chart: { revenue_5y: chartData },
-      debug: { 
-        concepts_tried: ['RevenueFromContract...', 'SalesRevenueNet', 'Revenues'],
-        total_merged: revenueSeries.length + 5, 
-        filtered_count: revenueSeries.length, 
-        latest_end: latestRev?.end, 
-        latest_value_B: latestRev ? (latestRev.val/1e9).toFixed(2)+'B' : null,
-        latest_concept: latestRev?._concept,
-        all_ends: revenueSeries.map(r=>r.end)
-      },
-      sec_compliant: { userAgent: UA },
-      timestamp: new Date().toISOString()
     });
-
   } catch (e) {
-    return res.status(500).json({ ok: false, error: e.message, stack: e.stack?.slice(0,500) });
+    console.error(e);
+    return res.status(502).json({ ok: false, error: 'SEC unavailable, try again later' });
   }
-    }
-        
+}
