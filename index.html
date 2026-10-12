@@ -44,16 +44,16 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 </div>
 </div>
 <div class="search-box">
-<input id="q" placeholder="اكتب Tesla, Nvidia, Apple أو TSLA, NVDA, AAPL">
+<input id="q" placeholder="اكتب 【entity-Tesla¦canonical_name=Tesla】, 【entity-Nvidia¦canonical_name=Nvidia】, Apple أو TSLA, NVDA, AAPL">
 <button onclick="search()">بحث عميق</button>
 </div>
 <div class="chips">
 <div class="chip" onclick="setQ('AAPL')">AAPL Apple</div>
-<div class="chip" onclick="setQ('TSLA')">TSLA Tesla</div>
-<div class="chip" onclick="setQ('NVDA')">NVDA Nvidia</div>
+<div class="chip" onclick="setQ('TSLA')">TSLA 【entity-Tesla¦canonical_name=Tesla】</div>
+<div class="chip" onclick="setQ('NVDA')">NVDA 【entity-Nvidia¦canonical_name=Nvidia】</div>
 <div class="chip" onclick="setQ('MSFT')">MSFT Microsoft</div>
-<div class="chip" onclick="setQ('Tesla')">Tesla الاسم</div>
-<div class="chip" onclick="setQ('Nvidia')">Nvidia الاسم</div>
+<div class="chip" onclick="setQ('【entity-Tesla¦canonical_name=Tesla】')">【entity-【entity-Tesla¦canonical_name=Tesla】¦canonical_name=【entity-Tesla¦canonical_name=Tesla】】 الاسم</div>
+<div class="chip" onclick="setQ('【entity-Nvidia¦canonical_name=Nvidia】')">【entity-Nvidia¦canonical_name=Nvidia】 الاسم</div>
 </div>
 <div id="result"></div>
 <div class="footer">
@@ -63,7 +63,7 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 </div>
 <script>
 const MAP = {
-"tesla":"TSLA","tesla inc":"TSLA","tesla motors":"TSLA",
+"【entity-tesla¦canonical_name=Tesla】":"TSLA","【entity-tesla¦canonical_name=Tesla】 inc":"TSLA","【entity-tesla¦canonical_name=Tesla】 motors":"TSLA",
 "nvidia":"NVDA","nvidia corp":"NVDA",
 "apple":"AAPL","apple inc":"AAPL",
 "microsoft":"MSFT","google":"GOOGL","alphabet":"GOOGL",
@@ -128,4 +128,8 @@ async function search(){
 }
 function extractLatest(factData, tag){
   try{
-    const units = factData.facts?.["us-gaap"]?.[tag]?.units?.USD
+    const units = factData.facts?.["us-gaap"]?.[tag]?.units?.USD || factData.facts?.["us-gaap"]?.[tag]?.units?.shares || [];
+    if(!units.length) return null;
+    const sorted = units.sort((a,b)=> new Date(b.end) - new Date(a.end));
+    return {val: sorted[0].val, end: sorted[0].end, form: sorted[0].form};
+  }catch
