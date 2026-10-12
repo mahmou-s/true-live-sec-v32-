@@ -1,144 +1,132 @@
-// api/company.js - V36 SECURE FIXED - Addresses Claude Review
-// - Validates ticker strictly
-// - Rate limit friendly, proper UA, cache, form=10-K fp=FY, frame-based
-// - Latest FY by end date, not fy field
-
+// api/company.js - V37 LIVE FIX - يصلح bug 2018 ويجيب 2024-2025 LIVE
 const CONTACT = 'Mahmoudsalem2080@gmail.com';
 const UA = `TrueLiveSEC/1.0 ${CONTACT}`;
 
 let tickersCache = null;
 let tickersTime = 0;
-
 async function getTickers() {
-  if (tickersCache && Date.now() - tickersTime < 1000 * 60 * 60 * 24) return tickersCache;
-  const r = await fetch('https://www.sec.gov/files/company_tickers.json', {
-    headers: { 'User-Agent': UA, 'Accept': 'application/json' }
-  });
+  if (tickersCache && Date.now() - tickersTime < 86400000) return tickersCache;
+  const r = await fetch('https://www.sec.gov/files/company_tickers.json', { headers: { 'User-Agent': UA }});
   if (!r.ok) throw new Error('SEC tickers failed: ' + r.status);
-  const j = await r.json();
-  tickersCache = j;
-  tickersTime = Date.now();
-  return j;
+  const j = await r.json(); tickersCache = j; tickersTime = Date.now(); return j;
 }
 
-function getSeriesFiltered(facts, concept) {
+function getLatestFacts(facts, concept) {
   const usd = facts.facts?.['us-gaap']?.[concept]?.units?.USD;
-  if (!usd || !usd.length) return null;
-  // FIX: filter FY + 10-K and sort by end desc - frame based
-  let filtered = usd.filter(x => {
-    // Prefer FY and 10-K, but allow if fp missing
-    const isFY = !x.fp || x.fp === 'FY';
-    const is10K = !x.form || x.form === '10-K';
-    return isFY && is10K;
+  if (!usd || usd.length === 0) return [];
+  // FIX V37: Sort DESC - الأحدث أولاً
+  const sorted = [...usd].sort((a, b) => {
+    const da = new Date(a.end).getTime() || 0;
+    const db = new Date(b.end).getTime() || 0;
+    return db - da; // DESC: 2024, 2023, 2022...
   });
-  if (filtered.length < 2) {
-    // fallback: just 10-K
-    filtered = usd.filter(x => !x.form || x.form === '10-K');
-  }
-  if (filtered.length < 2) filtered = usd;
-  const sorted = [...filtered].sort((a,b) => new Date(b.end) - new Date(a.end));
   return sorted;
 }
 
-function getAnnualRevenueSeries(facts) {
+function getAnnualRevenueSeriesV37(facts) {
   const concepts = ['Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax', 'SalesRevenueNet'];
+  let allSeries = [];
   for (let c of concepts) {
-    const series = getSeriesFiltered(facts, c);
-    if (series && series.length) {
-      // take last 5 unique FY ends
-      const unique = [];
-      const seenEnds = new Set();
-      for (const s of series) {
-        const yr = s.end?.slice(0,4);
-        if (!seenEnds.has(s.end) && s.end) {
-          seenEnds.add(s.end);
-          unique.push(s);
-        }
-        if (unique.length >= 5) break;
-      }
-      if (unique.length >= 1) return unique;
+    const series = getLatestFacts(facts, c);
+    if (series.length > 0) {
+      allSeries = series;
+      break;
     }
   }
-  return null;
+  if (allSeries.length === 0) return [];
+
+  // فلتر: 10-K + FY فقط، مع fallback
+  let filtered = allSeries.filter(x => x.form === '10-K' && x.fp === 'FY');
+  if (filtered.length < 2) filtered = allSeries.filter(x => x.form === '10-K');
+  if (filtered.length < 2) filtered = allSeries;
+
+  // إزالة التكرار بنفس تاريخ الانتهاء - نحتفظ بأحدث Filed
+  const byEnd = new Map();
+  for (const item of filtered) {
+    if (!item.end) continue;
+    const existing = byEnd.get(item.end);
+    if (!existing) {
+      byEnd.set(item.end, item);
+    } else {
+      // احتفظ بالأحدث Filed
+      const eFiled = new Date(existing.filed || 0).getTime();
+      const nFiled = new Date(item.filed || 0).getTime();
+      if (nFiled > eFiled) byEnd.set(item.end, item);
+    }
+  }
+
+  // حول لـ array ورتب DESC مرة أخرى - الأحدث أولاً
+  let unique = Array.from(byEnd.values()).sort((a, b) => new Date(b.end) - new Date(a.end));
+
+  // خد آخر 5 سنوات فقط
+  unique = unique.slice(0, 5);
+
+  return unique; // [0] = 2024/2025 = الأحدث
 }
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300'); // قلل الكاش لـ 60 ثانية عشان يبان LIVE بسرعة
   res.setHeader('X-Content-Type-Options', 'nosniff');
   
-  let q = (req.query.ticker || req.query.q || '').toString().toUpperCase().trim();
-  // STRICT validation - fix XSS + injection
-  q = q.replace(/[^A-Z0-9.\-]/g,'').slice(0,10);
-  if (!q || q.length < 1) return res.status(400).json({ ok: false, error: 'Missing or invalid ?ticker=AAPL (A-Z only)' });
-  if (!/^[A-Z]/.test(q)) return res.status(400).json({ ok: false, error: 'Ticker must start with letter' });
+  let q = (req.query.ticker || '').toString().toUpperCase().trim().replace(/[^A-Z0-9.\-]/g, '').slice(0, 10);
+  if (!q || !/^[A-Z]/.test(q)) return res.status(400).json({ ok: false, error: 'Invalid ticker' });
 
   try {
     const tickers = await getTickers();
-    let found = null;
-    const qLower = q.toLowerCase();
-    for (const k in tickers) {
-      const e = tickers[k];
-      if (e.ticker.toLowerCase() === qLower) { found = e; break; }
-    }
-    if (!found) {
-      for (const k in tickers) {
-        const e = tickers[k];
-        if (e.title.toLowerCase().includes(qLower)) { found = e; break; }
-      }
-    }
-    if (!found) return res.status(404).json({ ok: false, found: false, query: q, error: 'Ticker not found in SEC' });
+    let found = null; const qL = q.toLowerCase();
+    for (const k in tickers) { if (tickers[k].ticker.toLowerCase() === qL) { found = tickers[k]; break; } }
+    if (!found) return res.status(404).json({ ok: false, error: 'Ticker not found', query: q });
 
-    const cik = String(found.cik_str).padStart(10,'0');
-    
+    const cik = String(found.cik_str).padStart(10, '0');
     const factsUrl = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
-    const fr = await fetch(factsUrl, {
-      headers: { 'User-Agent': UA, 'Accept': 'application/json', 'Host': 'data.sec.gov' }
-    });
-    if (!fr.ok) {
-      return res.status(200).json({
-        ok: true, live: false, source: 'SEC tickers only',
-        cik, ticker: found.ticker, company: found.title,
-        note: 'Facts not available',
-        sec_compliant: { userAgent: UA, rateLimit: '10 req/s max' }
-      });
-    }
+    const fr = await fetch(factsUrl, { headers: { 'User-Agent': UA, 'Accept': 'application/json', 'Host': 'data.sec.gov' } });
+    if (!fr.ok) return res.status(200).json({ ok: true, live: false, cik, ticker: found.ticker, note: 'Facts not available' });
+
     const facts = await fr.json();
-    
-    const revenueSeries = getAnnualRevenueSeries(facts);
-    const netSeries = getSeriesFiltered(facts, 'NetIncomeLoss');
-    const assetsSeries = getSeriesFiltered(facts, 'Assets');
-    const epsSeries = getSeriesFiltered(facts, 'EarningsPerShareDiluted') || getSeriesFiltered(facts, 'EarningsPerShareBasic');
 
-    const latestRev = revenueSeries?.[0] || null;
-    const latestInc = netSeries?.[0] || null;
-    const latestAst = assetsSeries?.[0] || null;
-    const latestEps = epsSeries?.[0] || null;
+    const revenueSeries = getAnnualRevenueSeriesV37(facts);
+    const netSeries = getLatestFacts(facts, 'NetIncomeLoss').filter(x => x.form === '10-K');
+    const assetsSeries = getLatestFacts(facts, 'Assets');
+    const epsSeries = getLatestFacts(facts, 'EarningsPerShareDiluted').length ? getLatestFacts(facts, 'EarningsPerShareDiluted') : getLatestFacts(facts, 'EarningsPerShareBasic');
 
-    // Determine if truly LIVE: all facts present and recent (end >= 2023)
+    const latestRev = revenueSeries[0] || null; // الأحدث - 2024
+    const latestInc = netSeries[0] || null;
+    const latestAst = assetsSeries[0] || null;
+    const latestEps = epsSeries[0] || null;
+
     const isRecent = latestRev && new Date(latestRev.end) >= new Date('2023-01-01');
-    const allPresent = !!(latestRev && latestInc && latestAst);
+    const allPresent = !!(latestRev);
+
+    // تشارت: من الأقدم للأحدث للرسم
+    const chartData = [...revenueSeries].reverse().map(r => ({
+      year: r.end.slice(0, 4),
+      end: r.end,
+      value: r.val,
+      form: r.form,
+      frame: r.frame,
+      fp: r.fp,
+      filed: r.filed
+    }));
 
     return res.status(200).json({
       ok: true,
       live: !!(isRecent && allPresent),
-      live_reason: isRecent ? 'recent FY >=2023 and all facts' : 'old data',
-      source: 'SEC EDGAR LIVE via Vercel Function',
+      live_reason: isRecent ? `LIVE FY ${latestRev.end} - ${latestRev.frame}` : `old data ${latestRev?.end}`,
+      source: 'SEC EDGAR LIVE via Vercel Function V37',
       cik,
       cik_num: found.cik_str,
       ticker: found.ticker,
       company: facts.entityName || found.title,
-      sic: facts.sic,
       latest: {
         revenue: latestRev ? { value: latestRev.val, end: latestRev.end, form: latestRev.form, filed: latestRev.filed, frame: latestRev.frame, fp: latestRev.fp } : null,
         netIncome: latestInc ? { value: latestInc.val, end: latestInc.end, form: latestInc.form, frame: latestInc.frame } : null,
-        assets: latestAst ? { value: latestAst.val, end: latestAst.end, form: latestAst.form, frame: latestAst.frame } : null,
+        assets: latestAst ? { value: latestAst.val, end: latestAst.end, form: latestAst.form } : null,
         eps: latestEps ? { value: latestEps.val, end: latestEps.end, frame: latestEps.frame } : null
       },
-      chart: {
-        revenue_5y: revenueSeries ? revenueSeries.map(r => ({ year: r.end.slice(0,4), end: r.end, value: r.val, form: r.form, frame: r.frame, fp: r.fp })).reverse() : []
-      },
-      sec_compliant: { userAgent: UA, rateLimit: 'max 10 req/s respected', cache: '1h' },
+      chart: { revenue_5y: chartData },
+      debug: { total_facts: facts.facts?.['us-gaap']?.Revenues?.units?.USD?.length || 0, filtered_count: revenueSeries.length, latest_end: latestRev?.end, latest_frame: latestRev?.frame },
+      sec_compliant: { userAgent: UA, rateLimit: '10 req/s', cache: '60s' },
       timestamp: new Date().toISOString()
     });
 
