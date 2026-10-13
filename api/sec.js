@@ -6,7 +6,7 @@
 // غيّر الإيميل ده لإيميلك الحقيقي - SEC بيطلبه
 const UA = 'TrueLiveSEC/1.0 (mahmoudsalem2080@gmail.com)';
 
-const TYPES = ['tickers', 'submissions', 'facts'];
+const TYPES = ['tickers', 'submissions', 'facts', 'inspect'];
 
 // آخر قيمة سنوية (10-K / FY) من بين كل التاجات المعطاة
 function latestAnnual(facts, tags, unit) {
@@ -20,6 +20,33 @@ function latestAnnual(facts, tags, unit) {
     }
   }
   return best;
+}
+
+
+// مؤقت: ملخص صغير لشكل بيانات شركة (للشركات الاجنبية 20-F / IFRS)
+function inspectFacts(facts) {
+  const re = /revenue|sales|netincome|profit|assets|cash|borrowing|debt|earningspershare|equity/i;
+  const taxonomies = {};
+  const tags = [];
+  for (const tax of Object.keys(facts || {})) {
+    taxonomies[tax] = Object.keys(facts[tax]).length;
+    for (const tag of Object.keys(facts[tax])) {
+      if (!re.test(tag)) continue;
+      const units = facts[tax][tag].units || {};
+      const unitNames = Object.keys(units);
+      const forms = new Set();
+      let latest = '';
+      for (const un of unitNames) {
+        for (const u of units[un]) {
+          forms.add(u.form);
+          if (u.end > latest) latest = u.end;
+        }
+      }
+      tags.push({ t: tax + '/' + tag, u: unitNames, f: [...forms], e: latest });
+    }
+  }
+  tags.sort((a, b) => (a.e < b.e ? 1 : -1));
+  return { taxonomies, shown: Math.min(tags.length, 60), total: tags.length, tags: tags.slice(0, 60) };
 }
 
 export default async function handler(req, res) {
@@ -36,7 +63,7 @@ export default async function handler(req, res) {
   const cik = rawCik.padStart(10, '0');
   let url = 'https://www.sec.gov/files/company_tickers.json';
   if (type === 'submissions') url = `https://data.sec.gov/submissions/CIK${cik}.json`;
-  if (type === 'facts') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+  if (type === 'facts' || type === 'inspect') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
 
   try {
     const r = await fetch(url, {
@@ -48,6 +75,10 @@ export default async function handler(req, res) {
     const data = await r.json();
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+
+    if (type === 'inspect') {
+      return res.status(200).json({ name: data.entityName, ...inspectFacts(data.facts) });
+    }
 
     if (type === 'facts') {
       const g = data.facts;
@@ -90,4 +121,4 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-  }
+}
