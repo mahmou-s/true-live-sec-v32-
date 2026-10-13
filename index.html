@@ -157,7 +157,7 @@ async function load(c){
 }
 
 function render(ticker, p, f){
-  const fmt = o => o ? `$${(o.val/1e9).toFixed(2)}B <small>(${esc(o.end)})</small>` : 'N/A';
+  const fmt = o => o ? `<bdi dir="ltr">$${(o.val/1e9).toFixed(2)}B <small>(${esc(o.end)})</small></bdi>` : 'N/A';
   const web = p.website ? esc(p.website) : 'N/A';
   document.getElementById('result').innerHTML = `
   <div class="card">
@@ -176,7 +176,7 @@ function render(ticker, p, f){
     <div class="grid">
       <div class="item"><b>Revenue</b><span>${fmt(f.revenue)}</span></div>
       <div class="item"><b>Net Income</b><span>${fmt(f.netIncome)}</span></div>
-      <div class="item"><b>EPS</b><span>${f.eps ? esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small></span></div>
+      <div class="item"><b>EPS</b><span><bdi dir="ltr">${f.eps ? esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small></bdi></span></div>
       <div class="item"><b>Assets</b><span>${fmt(f.assets)}</span></div>
       <div class="item"><b>Cash</b><span>${fmt(f.cash)}</span></div>
       <div class="item"><b>Debt</b><span>${fmt(f.debt)}</span></div>
@@ -185,4 +185,4 @@ function render(ticker, p, f){
 }
 </script>
 </body>
-</html>
+  </html>
