@@ -6,9 +6,9 @@
 // غيّر الإيميل ده لإيميلك الحقيقي - SEC بيطلبه
 const UA = 'TrueLiveSEC/1.0 (mahmoudsalem2080@gmail.com)';
 
-const TYPES = ['tickers', 'submissions', 'facts', 'inspect', 'probe'];
+const TYPES = ['tickers', 'submissions', 'facts'];
 
-// آخر قيمة سنوية (10-K / FY) من بين كل التاجات المعطاة
+// ---------- شركات امريكية (US-GAAP / 10-K) ----------
 function latestAnnual(facts, tags, unit) {
   let best = null;
   for (const tag of tags) {
@@ -22,61 +22,57 @@ function latestAnnual(facts, tags, unit) {
   return best;
 }
 
+// ---------- شركات اجنبية (IFRS / 20-F) ----------
+const IFRS_TAGS = {
+  revenue: ['Revenue', 'RevenueFromContractsWithCustomers'],
+  netIncome: ['ProfitLossAttributableToOwnersOfParent', 'ProfitLoss'],
+  eps: ['BasicEarningsLossPerShare', 'DilutedEarningsLossPerShare'],
+  assets: ['Assets'],
+  cash: ['CashAndCashEquivalents']
+};
 
-// مؤقت: ملخص صغير لشكل بيانات شركة (للشركات الاجنبية 20-F / IFRS)
-function inspectFacts(facts) {
-  const re = /revenue|sales|netincome|profit|assets|cash|borrowing|debt|earningspershare|equity/i;
-  const taxonomies = {};
-  const tags = [];
-  for (const tax of Object.keys(facts || {})) {
-    taxonomies[tax] = Object.keys(facts[tax]).length;
-    for (const tag of Object.keys(facts[tax])) {
-      if (!re.test(tag)) continue;
-      const units = facts[tax][tag].units || {};
-      const unitNames = Object.keys(units);
-      const forms = new Set();
-      let latest = '';
-      for (const un of unitNames) {
-        for (const u of units[un]) {
-          forms.add(u.form);
-          if (u.end > latest) latest = u.end;
-        }
-      }
-      tags.push({ t: tax + '/' + tag, u: unitNames, f: [...forms], e: latest });
-    }
-  }
-  tags.sort((a, b) => (a.e < b.e ? 1 : -1));
-  return { taxonomies, shown: Math.min(tags.length, 60), total: tags.length, tags: tags.slice(0, 60) };
+// فترة سنوية تقريباً (لو الرقم ليه تاريخ بداية)
+function isAnnualPeriod(u) {
+  if (!u.start) return true;
+  const days = (Date.parse(u.end) - Date.parse(u.start)) / 86400000;
+  return days >= 340 && days <= 390;
 }
 
-// مؤقت: قيم فعلية لاسماء IFRS المرشحة (تقارير 20-F فقط) علشان نتأكد من الوحدة والفترة
-const PROBE_TAGS = [
-  'Revenue', 'RevenueFromContractsWithCustomers',
-  'ProfitLoss', 'ProfitLossAttributableToOwnersOfParent',
-  'BasicEarningsLossPerShare', 'DilutedEarningsLossPerShare',
-  'Assets', 'CashAndCashEquivalents',
-  'Borrowings', 'LongtermBorrowings', 'NoncurrentBorrowings', 'CurrentBorrowings'
-];
-function probeFacts(facts) {
-  const g = facts?.['ifrs-full'] || {};
-  const out = {};
-  for (const tag of PROBE_TAGS) {
-    const units = g[tag]?.units;
-    if (!units) { out[tag] = null; continue; }
-    out[tag] = {};
-    for (const un of Object.keys(units)) {
-      const byPeriod = new Map();
-      for (const u of units[un]) {
-        if (u.form !== '20-F') continue;
-        const key = (u.start || '') + '|' + u.end;
-        const old = byPeriod.get(key);
-        if (!old || (u.filed || '') > (old.filed || '')) byPeriod.set(key, u);
+// احدث قيمة سنوية 20-F لكل وحدة (عملة)
+function bestByUnit(facts, tags) {
+  const res = {};
+  for (const tag of tags) {
+    const units = facts?.['ifrs-full']?.[tag]?.units;
+    if (!units) continue;
+    for (const [unit, arr] of Object.entries(units)) {
+      for (const u of arr) {
+        if (u.form !== '20-F' || u.fp !== 'FY' || !isAnnualPeriod(u)) continue;
+        if (!res[unit] || u.end > res[unit].end) res[unit] = { val: u.val, end: u.end };
       }
-      out[tag][un] = [...byPeriod.values()]
-        .sort((a, b) => (a.end < b.end ? 1 : -1))
-        .slice(0, 3)
-        .map(u => ({ s: u.start, e: u.end, v: u.val, fp: u.fp, fy: u.fy }));
     }
+  }
+  return res;
+}
+
+// العملة الاساسية = عملة الشركة (غير الدولار لو موجودة)، والدولار كمعلومة اضافية
+function pickIfrs(facts, tags) {
+  const byUnit = bestByUnit(facts, tags);
+  const names = Object.keys(byUnit);
+  if (!names.length) return null;
+  const cur = (n) => n.split('/')[0];
+  const primary = names.find((n) => cur(n) !== 'USD') || names[0];
+  const usdName = names.find((n) => cur(n) === 'USD' && n !== primary);
+  const usd = usdName && byUnit[usdName].end === byUnit[primary].end ? { val: byUnit[usdName].val } : null;
+  return { val: byUnit[primary].val, end: byUnit[primary].end, cur: cur(primary), usd };
+}
+
+// لو رقم اقدم من احدث رقم بأكتر من 400 يوم نخفيه بدل ما نعرض رقم قديم مضلل
+function dropStale(out) {
+  const ends = Object.values(out).filter(Boolean).map((x) => Date.parse(x.end));
+  if (!ends.length) return out;
+  const newest = Math.max(...ends);
+  for (const k of Object.keys(out)) {
+    if (out[k] && newest - Date.parse(out[k].end) > 400 * 86400000) out[k] = null;
   }
   return out;
 }
@@ -95,7 +91,7 @@ export default async function handler(req, res) {
   const cik = rawCik.padStart(10, '0');
   let url = 'https://www.sec.gov/files/company_tickers.json';
   if (type === 'submissions') url = `https://data.sec.gov/submissions/CIK${cik}.json`;
-  if (type === 'facts' || type === 'inspect' || type === 'probe') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+  if (type === 'facts') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
 
   try {
     const r = await fetch(url, {
@@ -108,17 +104,10 @@ export default async function handler(req, res) {
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
 
-    if (type === 'inspect') {
-      return res.status(200).json({ name: data.entityName, ...inspectFacts(data.facts) });
-    }
-
-    if (type === 'probe') {
-      return res.status(200).json({ name: data.entityName, ...{ tags: probeFacts(data.facts) } });
-    }
-
     if (type === 'facts') {
       const g = data.facts;
-      const out = {
+
+      const us = dropStale({
         revenue: latestAnnual(g, [
           'Revenues',
           'RevenueFromContractWithCustomerExcludingAssessedTax',
@@ -129,14 +118,25 @@ export default async function handler(req, res) {
         assets: latestAnnual(g, ['Assets'], 'USD'),
         cash: latestAnnual(g, ['CashAndCashEquivalentsAtCarryingValue'], 'USD'),
         debt: latestAnnual(g, ['LongTermDebt', 'LongTermDebtNoncurrent', 'LongTermDebtAndCapitalLeaseObligations', 'DebtAndCapitalLeaseObligations'], 'USD')
-      };
-      // لو رقم اقدم من احدث رقم بأكتر من 400 يوم نخفيه بدل ما نعرض رقم قديم مضلل
-      const ends = Object.values(out).filter(Boolean).map(x => Date.parse(x.end));
-      const newest = Math.max(...ends);
-      for (const k of Object.keys(out)) {
-        if (out[k] && newest - Date.parse(out[k].end) > 400 * 86400000) out[k] = null;
+      });
+      if (Object.values(us).some(Boolean)) {
+        return res.status(200).json({ standard: 'US-GAAP', form: '10-K', ...us });
       }
-      return res.status(200).json(out);
+
+      // مفيش ارقام امريكية: نجرب IFRS / 20-F (الديون مش معروضة لهذه الشركات حالياً لانها مش مؤكدة)
+      const ifrs = dropStale({
+        revenue: pickIfrs(g, IFRS_TAGS.revenue),
+        netIncome: pickIfrs(g, IFRS_TAGS.netIncome),
+        eps: pickIfrs(g, IFRS_TAGS.eps),
+        assets: pickIfrs(g, IFRS_TAGS.assets),
+        cash: pickIfrs(g, IFRS_TAGS.cash),
+        debt: null
+      });
+      if (Object.values(ifrs).some(Boolean)) {
+        return res.status(200).json({ standard: 'IFRS', form: '20-F', ...ifrs });
+      }
+
+      return res.status(200).json({ standard: null, form: null, ...us });
     }
 
     if (type === 'submissions') {
