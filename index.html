@@ -98,7 +98,8 @@ function matches(q){
     else if(t.startsWith(q) || n.startsWith(q)) starts.push(c);
     else if(n.includes(q)) inc.push(c);
   }
-  return [...exact, ...starts, ...inc].slice(0, 8);
+  const byLen = (a, b) => a.title.length - b.title.length;
+  return [...exact, ...starts.sort(byLen), ...inc.sort(byLen)].slice(0, 8);
 }
 
 function onInput(){
@@ -185,4 +186,4 @@ function render(ticker, p, f){
 }
 </script>
 </body>
-  </html>
+</html>
