@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRUE LIVE SEC V46</title>
+<title>TRUE LIVE SEC V48</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
@@ -30,13 +30,15 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 .item{background:#13233f;padding:10px;border-radius:8px;word-break:break-word}
 .item b{color:#94a3b8;font-size:11px;display:block}
 .item span{font-size:14px;font-weight:bold}
+.src{margin-top:12px;font-size:12px}
+.src a{color:#00ff88}
 .footer{text-align:center;font-size:11px;color:#64748b;margin-top:30px}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>TRUE LIVE SEC V46</h1>
+    <h1>TRUE LIVE SEC V48</h1>
     <div>كل شركات SEC - بحث بالاسم او الرمز</div>
     <div>
       <span class="badge">SEC EDGAR</span>
@@ -55,7 +57,7 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 
   <div class="chips" id="chips"></div>
   <div id="result"></div>
-  <div class="footer">V46 - المصدر: SEC.gov عبر /api/sec</div>
+  <div class="footer">V48 - المصدر: SEC.gov عبر /api/sec</div>
 </div>
 
 <script>
@@ -157,9 +159,27 @@ async function load(c){
   }
 }
 
+function money(v){
+  const a = Math.abs(v), s = v < 0 ? '-' : '';
+  if(a >= 1e9) return s + '$' + (a/1e9).toFixed(2) + 'B';
+  if(a >= 1e6) return s + '$' + (a/1e6).toFixed(2) + 'M';
+  if(a >= 1e3) return s + '$' + (a/1e3).toFixed(1) + 'K';
+  return s + '$' + a.toFixed(0);
+}
+
 function render(ticker, p, f){
-  const fmt = o => o ? `<bdi dir="ltr">$${(o.val/1e9).toFixed(2)}B <small>(${esc(o.end)})</small></bdi>` : 'N/A';
+  const fmt = o => o ? `<bdi dir="ltr">${money(o.val)} <small>(${esc(o.end)})</small></bdi>` : 'N/A';
   const web = p.website ? esc(p.website) : 'N/A';
+  const none = ![f.revenue, f.netIncome, f.eps, f.assets, f.cash, f.debt].some(Boolean);
+  const secLink = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(p.cik || '')}&type=10-K&dateb=&owner=include&count=40`;
+  const finBlock = none
+    ? `<div class="item" style="grid-column:1/-1"><span>ما لقيناش أرقام سنوية (10-K) لهذا السجل في SEC.</span><br><small>أسباب محتملة: شركة أجنبية بتقدّم تقريرها بنموذج 20-F، أو سجل جديد لسه ما قدّمش تقرير سنوي، أو أرقام مسجلة بأسماء غير قياسية.</small></div>`
+    : `<div class="item"><b>Revenue</b><span>${fmt(f.revenue)}</span></div>
+      <div class="item"><b>Net Income</b><span>${fmt(f.netIncome)}</span></div>
+      <div class="item"><b>EPS</b><span><bdi dir="ltr">${f.eps ? esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small></bdi></span></div>
+      <div class="item"><b>Assets</b><span>${fmt(f.assets)}</span></div>
+      <div class="item"><b>Cash</b><span>${fmt(f.cash)}</span></div>
+      <div class="item"><b>Debt</b><span>${fmt(f.debt)}</span></div>`;
   document.getElementById('result').innerHTML = `
   <div class="card">
     <h3><bdi>${esc(p.name || ticker)}</bdi> (<bdi>${esc(ticker)}</bdi>)</h3>
@@ -174,14 +194,8 @@ function render(ticker, p, f){
   </div>
   <div class="card">
     <h3>المالية - آخر سنة <bdi>10-K</bdi></h3>
-    <div class="grid">
-      <div class="item"><b>Revenue</b><span>${fmt(f.revenue)}</span></div>
-      <div class="item"><b>Net Income</b><span>${fmt(f.netIncome)}</span></div>
-      <div class="item"><b>EPS</b><span><bdi dir="ltr">${f.eps ? esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small></bdi></span></div>
-      <div class="item"><b>Assets</b><span>${fmt(f.assets)}</span></div>
-      <div class="item"><b>Cash</b><span>${fmt(f.cash)}</span></div>
-      <div class="item"><b>Debt</b><span>${fmt(f.debt)}</span></div>
-    </div>
+    <div class="grid">${finBlock}</div>
+    <div class="src"><a href="${secLink}" target="_blank" rel="noopener">تحقق من المصدر على SEC.gov</a></div>
   </div>`;
 }
 </script>
