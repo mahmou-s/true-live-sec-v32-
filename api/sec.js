@@ -51,18 +51,25 @@ export default async function handler(req, res) {
 
     if (type === 'facts') {
       const g = data.facts;
-      return res.status(200).json({
+      const out = {
         revenue: latestAnnual(g, [
           'Revenues',
           'RevenueFromContractWithCustomerExcludingAssessedTax',
           'SalesRevenueNet'
         ], 'USD'),
-        netIncome: latestAnnual(g, ['NetIncomeLoss'], 'USD'),
+        netIncome: latestAnnual(g, ['NetIncomeLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic', 'ProfitLoss'], 'USD'),
         eps: latestAnnual(g, ['EarningsPerShareBasic', 'EarningsPerShareDiluted'], 'USD/shares'),
         assets: latestAnnual(g, ['Assets'], 'USD'),
-                cash: latestAnnual(g, ['CashAndCashEquivalentsAtCarryingValue'], 'USD'),
-        debt: latestAnnual(g, ['LongTermDebt', 'LongTermDebtNoncurrent'], 'USD')
-      });
+        cash: latestAnnual(g, ['CashAndCashEquivalentsAtCarryingValue'], 'USD'),
+        debt: latestAnnual(g, ['LongTermDebt', 'LongTermDebtNoncurrent', 'LongTermDebtAndCapitalLeaseObligations', 'DebtAndCapitalLeaseObligations'], 'USD')
+      };
+      // لو رقم اقدم من احدث رقم بأكتر من 400 يوم نخفيه بدل ما نعرض رقم قديم مضلل
+      const ends = Object.values(out).filter(Boolean).map(x => Date.parse(x.end));
+      const newest = Math.max(...ends);
+      for (const k of Object.keys(out)) {
+        if (out[k] && newest - Date.parse(out[k].end) > 400 * 86400000) out[k] = null;
+      }
+      return res.status(200).json(out);
     }
 
     if (type === 'submissions') {
@@ -83,4 +90,4 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-}
+  }
