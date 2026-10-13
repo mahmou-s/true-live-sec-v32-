@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRUE LIVE SEC V45</title>
+<title>TRUE LIVE SEC V46</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
@@ -11,9 +11,16 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 .header{text-align:center;padding:22px;border:2px solid #00ff88;border-radius:16px;margin-bottom:20px;background:#0f1a2e}
 .header h1{color:#00ff88;font-size:28px}
 .badge{display:inline-block;background:#00ff88;color:#000;padding:4px 10px;border-radius:20px;font-size:11px;margin:4px;font-weight:bold}
-.search-box{display:flex;gap:10px;margin:20px 0}
+.search-wrap{position:relative;margin:20px 0 10px}
+.search-box{display:flex;gap:10px}
 .search-box input{flex:1;padding:14px;border-radius:10px;border:1px solid #1e3a5f;background:#13233f;color:#fff;font-size:16px}
 .search-box button{padding:14px 24px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
+.sugg{position:absolute;top:100%;right:0;left:0;margin-top:6px;background:#0f1a2e;border:1px solid #1e3a5f;border-radius:10px;z-index:10;overflow:hidden}
+.sugg-item{padding:11px 14px;border-bottom:1px solid #1e3a5f;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.sugg-item:last-child{border-bottom:none}
+.sugg-item:hover{background:#13233f}
+.sugg-item b{color:#00ff88;direction:ltr}
+.sugg-item span{color:#94a3b8;direction:ltr;text-align:left;font-size:12px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
 .chip{padding:8px 14px;background:#1e293b;border:1px solid #334155;border-radius:20px;cursor:pointer;font-size:13px}
 .chip:hover{border-color:#00ff88;color:#00ff88}
@@ -29,39 +36,36 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 <body>
 <div class="container">
   <div class="header">
-    <h1>TRUE LIVE SEC V45</h1>
-    <div>SECURE API ROUTE</div>
+    <h1>TRUE LIVE SEC V46</h1>
+    <div>كل شركات SEC - بحث بالاسم او الرمز</div>
     <div>
       <span class="badge">SEC EDGAR</span>
       <span class="badge">VERCEL API</span>
-      <span class="badge">NO CORS</span>
+      <span class="badge" id="count">...</span>
     </div>
   </div>
 
-  <div class="search-box">
-    <input id="q" placeholder="اكتب Tesla, Apple او TSLA, AAPL">
-    <button onclick="search()">بحث عميق</button>
+  <div class="search-wrap">
+    <div class="search-box">
+      <input id="q" placeholder="اكتب اسم الشركة او الرمز: Tesla, AAPL, Ford..." autocomplete="off" oninput="onInput()">
+      <button onclick="search()">بحث عميق</button>
+    </div>
+    <div id="sugg" class="sugg" style="display:none"></div>
   </div>
 
-  <div class="chips">
-    <div class="chip" onclick="setQ('AAPL')">AAPL Apple</div>
-    <div class="chip" onclick="setQ('TSLA')">TSLA Tesla</div>
-    <div class="chip" onclick="setQ('NVDA')">NVDA Nvidia</div>
-    <div class="chip" onclick="setQ('MSFT')">MSFT Microsoft</div>
-    <div class="chip" onclick="setQ('Tesla')">Tesla</div>
-    <div class="chip" onclick="setQ('Nvidia')">Nvidia</div>
-  </div>
-
+  <div class="chips" id="chips"></div>
   <div id="result"></div>
-  <div class="footer">V45 - Secure API - المصدر: SEC.gov عبر /api/sec</div>
+  <div class="footer">V46 - المصدر: SEC.gov عبر /api/sec</div>
 </div>
 
 <script>
-const MAP = {
-  "tesla":"TSLA","tesla inc":"TSLA","nvidia":"NVDA","apple":"AAPL","apple inc":"AAPL",
-  "microsoft":"MSFT","google":"GOOGL","alphabet":"GOOGL","amazon":"AMZN",
-  "meta":"META","facebook":"META","netflix":"NFLX"
-};
+const POPULAR = ['AAPL','MSFT','NVDA','TSLA','AMZN','GOOGL','META','NFLX','AMD','INTC','JPM','V','WMT','KO','DIS','BA','NKE','PFE'];
+let TICKERS = [];
+let last = [];
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 async function api(params){
   const r = await fetch('/api/sec?' + new URLSearchParams(params));
@@ -73,52 +77,106 @@ async function api(params){
   return r.json();
 }
 
-function setQ(v){ document.getElementById('q').value = v; search(); }
+// تحميل قائمة كل الشركات مرة واحدة
+const ready = (async () => {
+  const d = await api({type:'tickers'});
+  TICKERS = Object.values(d).map(x => ({ticker:x.ticker, title:x.title, cik:String(x.cik_str)}));
+  document.getElementById('count').textContent = TICKERS.length.toLocaleString('en-US') + ' شركة';
+})();
+ready.catch(e => { document.getElementById('count').textContent = 'خطأ تحميل'; });
+
+document.getElementById('chips').innerHTML =
+  POPULAR.map(t => `<div class="chip" onclick="setQ('${t}')">${t}</div>`).join('');
+
+function matches(q){
+  q = q.trim().toLowerCase();
+  if(!q) return [];
+  const exact = [], starts = [], inc = [];
+  for(const c of TICKERS){
+    const t = c.ticker.toLowerCase(), n = c.title.toLowerCase();
+    if(t === q) exact.push(c);
+    else if(t.startsWith(q) || n.startsWith(q)) starts.push(c);
+    else if(n.includes(q)) inc.push(c);
+  }
+  return [...exact, ...starts, ...inc].slice(0, 8);
+}
+
+function onInput(){
+  const box = document.getElementById('sugg');
+  last = matches(document.getElementById('q').value);
+  if(!last.length){ box.style.display = 'none'; return; }
+  box.innerHTML = last.map((c,i) =>
+    `<div class="sugg-item" onclick="pick(${i})"><b>${esc(c.ticker)}</b><span>${esc(c.title)}</span></div>`
+  ).join('');
+  box.style.display = 'block';
+}
+
+function pick(i){
+  const c = last[i];
+  if(!c) return;
+  document.getElementById('q').value = c.ticker;
+  load(c);
+}
+
+function setQ(t){
+  document.getElementById('q').value = t;
+  search();
+}
 
 async function search(){
-  const raw = document.getElementById('q').value.trim().toLowerCase();
-  if(!raw) return;
-  const ticker = MAP[raw] || raw.toUpperCase();
   const box = document.getElementById('result');
-  box.innerHTML = `<div class="card">جاري الجلب من SEC لـ ${ticker}...</div>`;
+  const q = document.getElementById('q').value.trim();
+  if(!q) return;
   try{
-    const tData = await api({type:'tickers'});
-    let company = null;
-    for(const k in tData){
-      if(tData[k].ticker === ticker){ company = tData[k]; break; }
-    }
-    if(!company) throw new Error('Ticker غير موجود في SEC');
-    const cik = String(company.cik_str);
-    const [sub, fin] = await Promise.all([
-      api({type:'submissions', cik}),
-      api({type:'facts', cik})
-    ]);
-    render(ticker, sub, fin);
+    await ready;
   }catch(e){
-    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${e.message}<br><small>لو 404: تأكد إن api/sec.js مرفوع جوه فولدر api، وإنك فاتح موقع Vercel مش المعاينة</small></div>`;
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}</div>`;
+    return;
+  }
+  const m = matches(q);
+  if(!m.length){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">ما لقيتش شركة بالاسم ده في SEC. جرب رمز السهم (زي F او KO) او اسم تاني.</div>`;
+    return;
+  }
+  load(m[0]);
+}
+
+async function load(c){
+  document.getElementById('sugg').style.display = 'none';
+  const box = document.getElementById('result');
+  box.innerHTML = `<div class="card">جاري الجلب من SEC لـ ${esc(c.title)} (${esc(c.ticker)})...</div>`;
+  try{
+    const [sub, fin] = await Promise.all([
+      api({type:'submissions', cik:c.cik}),
+      api({type:'facts', cik:c.cik})
+    ]);
+    render(c.ticker, sub, fin);
+  }catch(e){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}<br><small>بعض الشركات (بنوك او صناديق) ما عندهاش كل الارقام في SEC، جرب شركة تانية.</small></div>`;
   }
 }
 
 function render(ticker, p, f){
-  const fmt = o => o ? `$${(o.val/1e9).toFixed(2)}B <small>(${o.end})</small>` : 'N/A';
+  const fmt = o => o ? `$${(o.val/1e9).toFixed(2)}B <small>(${esc(o.end)})</small>` : 'N/A';
+  const web = p.website ? esc(p.website) : 'N/A';
   document.getElementById('result').innerHTML = `
   <div class="card">
-    <h3>${p.name || ticker} (${ticker})</h3>
+    <h3><bdi>${esc(p.name || ticker)}</bdi> (<bdi>${esc(ticker)}</bdi>)</h3>
     <div class="grid">
-      <div class="item"><b>الموقع</b><span>${p.website || 'N/A'}</span></div>
-      <div class="item"><b>التليفون</b><span>${p.phone || 'N/A'}</span></div>
-      <div class="item"><b>العنوان</b><span>${p.address || 'N/A'}</span></div>
-      <div class="item"><b>التصنيف</b><span>${p.sicDescription || 'N/A'}</span></div>
-      <div class="item"><b>CIK</b><span>${p.cik || 'N/A'}</span></div>
-      <div class="item"><b>آخر تقديم</b><span>${p.lastFilingDate || 'N/A'} ${p.lastFilingForm || ''}</span></div>
+      <div class="item"><b>الموقع</b><span>${web}</span></div>
+      <div class="item"><b>التليفون</b><span><bdi>${esc(p.phone || 'N/A')}</bdi></span></div>
+      <div class="item"><b>العنوان</b><span><bdi>${esc(p.address || 'N/A')}</bdi></span></div>
+      <div class="item"><b>التصنيف</b><span><bdi>${esc(p.sicDescription || 'N/A')}</bdi></span></div>
+      <div class="item"><b>CIK</b><span>${esc(p.cik || 'N/A')}</span></div>
+      <div class="item"><b>آخر تقديم</b><span><bdi>${esc(p.lastFilingForm || '')}</bdi> ${esc(p.lastFilingDate || 'N/A')}</span></div>
     </div>
   </div>
   <div class="card">
-    <h3>المالية - آخر سنة 10-K</h3>
+    <h3>المالية - آخر سنة <bdi>10-K</bdi></h3>
     <div class="grid">
       <div class="item"><b>Revenue</b><span>${fmt(f.revenue)}</span></div>
       <div class="item"><b>Net Income</b><span>${fmt(f.netIncome)}</span></div>
-      <div class="item"><b>EPS</b><span>${f.eps ? f.eps.val : 'N/A'} <small>${f.eps ? '(' + f.eps.end + ')' : ''}</small></span></div>
+      <div class="item"><b>EPS</b><span>${f.eps ? esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small></span></div>
       <div class="item"><b>Assets</b><span>${fmt(f.assets)}</span></div>
       <div class="item"><b>Cash</b><span>${fmt(f.cash)}</span></div>
       <div class="item"><b>Debt</b><span>${fmt(f.debt)}</span></div>
