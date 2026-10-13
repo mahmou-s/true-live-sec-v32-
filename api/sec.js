@@ -6,7 +6,7 @@
 // غيّر الإيميل ده لإيميلك الحقيقي - SEC بيطلبه
 const UA = 'TrueLiveSEC/1.0 (mahmoudsalem2080@gmail.com)';
 
-const TYPES = ['tickers', 'submissions', 'facts', 'inspect'];
+const TYPES = ['tickers', 'submissions', 'facts', 'inspect', 'probe'];
 
 // آخر قيمة سنوية (10-K / FY) من بين كل التاجات المعطاة
 function latestAnnual(facts, tags, unit) {
@@ -49,6 +49,38 @@ function inspectFacts(facts) {
   return { taxonomies, shown: Math.min(tags.length, 60), total: tags.length, tags: tags.slice(0, 60) };
 }
 
+// مؤقت: قيم فعلية لاسماء IFRS المرشحة (تقارير 20-F فقط) علشان نتأكد من الوحدة والفترة
+const PROBE_TAGS = [
+  'Revenue', 'RevenueFromContractsWithCustomers',
+  'ProfitLoss', 'ProfitLossAttributableToOwnersOfParent',
+  'BasicEarningsLossPerShare', 'DilutedEarningsLossPerShare',
+  'Assets', 'CashAndCashEquivalents',
+  'Borrowings', 'LongtermBorrowings', 'NoncurrentBorrowings', 'CurrentBorrowings'
+];
+function probeFacts(facts) {
+  const g = facts?.['ifrs-full'] || {};
+  const out = {};
+  for (const tag of PROBE_TAGS) {
+    const units = g[tag]?.units;
+    if (!units) { out[tag] = null; continue; }
+    out[tag] = {};
+    for (const un of Object.keys(units)) {
+      const byPeriod = new Map();
+      for (const u of units[un]) {
+        if (u.form !== '20-F') continue;
+        const key = (u.start || '') + '|' + u.end;
+        const old = byPeriod.get(key);
+        if (!old || (u.filed || '') > (old.filed || '')) byPeriod.set(key, u);
+      }
+      out[tag][un] = [...byPeriod.values()]
+        .sort((a, b) => (a.end < b.end ? 1 : -1))
+        .slice(0, 3)
+        .map(u => ({ s: u.start, e: u.end, v: u.val, fp: u.fp, fy: u.fy }));
+    }
+  }
+  return out;
+}
+
 export default async function handler(req, res) {
   const type = String(req.query.type || '');
   const rawCik = String(req.query.cik || '');
@@ -63,7 +95,7 @@ export default async function handler(req, res) {
   const cik = rawCik.padStart(10, '0');
   let url = 'https://www.sec.gov/files/company_tickers.json';
   if (type === 'submissions') url = `https://data.sec.gov/submissions/CIK${cik}.json`;
-  if (type === 'facts' || type === 'inspect') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+  if (type === 'facts' || type === 'inspect' || type === 'probe') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
 
   try {
     const r = await fetch(url, {
@@ -78,6 +110,10 @@ export default async function handler(req, res) {
 
     if (type === 'inspect') {
       return res.status(200).json({ name: data.entityName, ...inspectFacts(data.facts) });
+    }
+
+    if (type === 'probe') {
+      return res.status(200).json({ name: data.entityName, ...{ tags: probeFacts(data.facts) } });
     }
 
     if (type === 'facts') {
