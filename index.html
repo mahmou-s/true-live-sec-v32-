@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRUE LIVE SEC V41 - Deep Profile Edition</title>
+<title>TRUE LIVE SEC V45</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
 .container{max-width:900px;margin:auto}
-.header{text-align:center;padding:20px;border:2px solid #00ff88;border-radius:16px;margin-bottom:20px;background:#0f1a2e}
+.header{text-align:center;padding:22px;border:2px solid #00ff88;border-radius:16px;margin-bottom:20px;background:#0f1a2e}
 .header h1{color:#00ff88;font-size:28px}
-.badge{display:inline-block;background:#00ff88;color:#000;padding:4px 10px;border-radius:20px;font-size:11px;margin:5px;font-weight:bold}
+.badge{display:inline-block;background:#00ff88;color:#000;padding:4px 10px;border-radius:20px;font-size:11px;margin:4px;font-weight:bold}
 .search-box{display:flex;gap:10px;margin:20px 0}
 .search-box input{flex:1;padding:14px;border-radius:10px;border:1px solid #1e3a5f;background:#13233f;color:#fff;font-size:16px}
 .search-box button{padding:14px 24px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
@@ -20,218 +20,110 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 .card{background:#0f1a2e;border:1px solid #1e3a5f;border-radius:14px;padding:18px;margin-bottom:14px}
 .card h3{color:#00ff88;margin-bottom:12px;font-size:16px;border-bottom:1px solid #1e3a5f;padding-bottom:8px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.item{background:#13233f;padding:10px;border-radius:8px}
+.item{background:#13233f;padding:10px;border-radius:8px;word-break:break-word}
 .item b{color:#94a3b8;font-size:11px;display:block}
 .item span{font-size:14px;font-weight:bold}
-.source-tag{font-size:10px;color:#00ff88;margin-top:4px}
-.tabs{display:flex;gap:8px;margin:15px 0;flex-wrap:wrap}
-.tab{padding:10px 18px;background:#1e293b;border-radius:8px;cursor:pointer;border:1px solid #334155}
-.tab.active{background:#00ff88;color:#000;font-weight:bold}
-.hidden{display:none}
 .footer{text-align:center;font-size:11px;color:#64748b;margin-top:30px}
 </style>
 </head>
 <body>
 <div class="container">
-<div class="header">
-<h1>TRUE LIVE SEC V41</h1>
-<div>DEEP PROFILE EDITION - Zero Storage Architecture</div>
-<div>
-<span class="badge">SEC EDGAR 10/10</span>
-<span class="badge">SEC 13F WHALE 10/10</span>
-<span class="badge">SEC PROFILE 10/10</span>
-<span class="badge">LIVE - NO DB</span>
+  <div class="header">
+    <h1>TRUE LIVE SEC V45</h1>
+    <div>SECURE API ROUTE</div>
+    <div>
+      <span class="badge">SEC EDGAR</span>
+      <span class="badge">VERCEL API</span>
+      <span class="badge">NO CORS</span>
+    </div>
+  </div>
+
+  <div class="search-box">
+    <input id="q" placeholder="اكتب Tesla, Apple او TSLA, AAPL">
+    <button onclick="search()">بحث عميق</button>
+  </div>
+
+  <div class="chips">
+    <div class="chip" onclick="setQ('AAPL')">AAPL Apple</div>
+    <div class="chip" onclick="setQ('TSLA')">TSLA Tesla</div>
+    <div class="chip" onclick="setQ('NVDA')">NVDA Nvidia</div>
+    <div class="chip" onclick="setQ('MSFT')">MSFT Microsoft</div>
+    <div class="chip" onclick="setQ('Tesla')">Tesla</div>
+    <div class="chip" onclick="setQ('Nvidia')">Nvidia</div>
+  </div>
+
+  <div id="result"></div>
+  <div class="footer">V45 - Secure API - المصدر: SEC.gov عبر /api/sec</div>
 </div>
-</div>
-<div class="search-box">
-<input id="q" placeholder="اكتب 【entity-Tesla¦canonical_name=Tesla】, 【entity-Nvidia¦canonical_name=Nvidia】, 【entity-Apple¦canonical_name=Apple】 أو TSLA, NVDA, AAPL">
-<button onclick="search()">بحث عميق</button>
-</div>
-<div class="chips">
-<div class="chip" onclick="setQ('AAPL')">AAPL 【entity-Apple¦canonical_name=Apple】</div>
-<div class="chip" onclick="setQ('TSLA')">TSLA 【entity-Tesla¦canonical_name=Tesla】</div>
-<div class="chip" onclick="setQ('NVDA')">NVDA 【entity-Nvidia¦canonical_name=Nvidia】</div>
-<div class="chip" onclick="setQ('MSFT')">【entity-MSFT Microsoft¦canonical_name=Microsoft】</div>
-<div class="chip" onclick="setQ('【entity-Tesla¦canonical_name=Tesla】')">【entity-Tesla¦canonical_name=Tesla】 الاسم</div>
-<div class="chip" onclick="setQ('【entity-Nvidia¦canonical_name=Nvidia】')">【entity-Nvidia¦canonical_name=Nvidia】 الاسم</div>
-</div>
-<div id="result"></div>
-<div class="footer">
-المرجع: أفكار محمود المحفوظة | نظام: Zero Storage - Fast Fetch - موثوق وقابل للتوسع لكل دولة<br>
-المصادر: SEC.gov فقط - APIs رسمية - User-Agent معتمد
-</div>
-</div>
+
 <script>
 const MAP = {
-"tesla":"TSLA","tesla inc":"TSLA","tesla motors":"TSLA",
-"nvidia":"NVDA","nvidia corp":"NVDA",
-"apple":"AAPL","apple inc":"AAPL",
-"microsoft":"MSFT","google":"GOOGL","alphabet":"GOOGL",
-"amazon":"AMZN","meta":"META","facebook":"META","netflix":"NFLX"
+  "tesla":"TSLA","tesla inc":"TSLA","nvidia":"NVDA","apple":"AAPL","apple inc":"AAPL",
+  "microsoft":"MSFT","google":"GOOGL","alphabet":"GOOGL","amazon":"AMZN",
+  "meta":"META","facebook":"META","netflix":"NFLX"
 };
-const SOURCES = {
-  US: {
-    name: "United States - SEC",
-    reliability: "10/10 - Mandatory by Law",
-    endpoints: {
-      tickers: "https://www.sec.gov/files/company_tickers.json",
-      submissions: (cik) => `https://data.sec.gov/submissions/CIK${cik.padStart(10,'0')}.json`,
-      facts: (cik) => `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik.padStart(10,'0')}.json`,
-    },
-    headers: { "User-Agent": "TRUE LIVE SEC V41 contact@truelivesec.com", "Accept": "application/json" }
+
+async function api(params){
+  const r = await fetch('/api/sec?' + new URLSearchParams(params));
+  if(!r.ok){
+    let msg = 'HTTP ' + r.status;
+    try{ msg = (await r.json()).error || msg; }catch(e){}
+    throw new Error(msg);
   }
-};
-function setQ(v){document.getElementById('q').value=v; search();}
+  return r.json();
+}
+
+function setQ(v){ document.getElementById('q').value = v; search(); }
+
 async function search(){
-  let raw = document.getElementById('q').value.trim().toLowerCase();
+  const raw = document.getElementById('q').value.trim().toLowerCase();
   if(!raw) return;
-  let ticker = MAP[raw] || raw.toUpperCase();
-  document.getElementById('result').innerHTML = `<div class="card">🔍 جاري الجلب المتوازي من 3 مصادر موثوقة لـ ${ticker}...<br><small>SEC المالية + SEC البطاقة + SEC الحيتان - بدون تخزين</small></div>`;
+  const ticker = MAP[raw] || raw.toUpperCase();
+  const box = document.getElementById('result');
+  box.innerHTML = `<div class="card">جاري الجلب من SEC لـ ${ticker}...</div>`;
   try{
-    const tickRes = await fetch(SOURCES.US.endpoints.tickers, {headers: SOURCES.US.headers});
-    const tickData = await tickRes.json();
+    const tData = await api({type:'tickers'});
     let company = null;
-    for(let k in tickData){
-      if(tickData[k].ticker === ticker){ company = tickData[k]; break; }
+    for(const k in tData){
+      if(tData[k].ticker === ticker){ company = tData[k]; break; }
     }
-    if(!company) throw new Error("Ticker غير موجود في SEC الرسمي");
-    let cik = String(company.cik_str);
-    const [subRes, factRes] = await Promise.all([
-      fetch(SOURCES.US.endpoints.submissions(cik), {headers: SOURCES.US.headers}),
-      fetch(SOURCES.US.endpoints.facts(cik), {headers: SOURCES.US.headers})
+    if(!company) throw new Error('Ticker غير موجود في SEC');
+    const cik = String(company.cik_str);
+    const [sub, fin] = await Promise.all([
+      api({type:'submissions', cik}),
+      api({type:'facts', cik})
     ]);
-    const subData = await subRes.json();
-    const factData = await factRes.json();
-        const profile = {
-      name: subData.name,
-      ticker: company.ticker,
-      cik: cik,
-      website: subData.website || "غير متاح في SEC",
-      phone: subData.phone || "غير متاح",
-      address: subData.addresses?.mailing? `${subData.addresses.mailing.city}, ${subData.addresses.mailing.state}` : "USA",
-      employees: extractFact(factData, "Employees") || extractFact(factData, "NumberOfEmployees") || "من 10-K",
-      sic: subData.sicDescription,
-      fiscalYearEnd: subData.fiscalYearEnd
-    };
-    const financials = {
-      revenue: extractLatest(factData, "Revenues") || extractLatest(factData, "RevenueFromContractWithCustomerExcludingAssessedTax") || extractLatest(factData, "SalesRevenueNet"),
-      netIncome: extractLatest(factData, "NetIncomeLoss"),
-      eps: extractLatest(factData, "EarningsPerShareBasic"),
-      assets: extractLatest(factData, "Assets"),
-      cash: extractLatest(factData, "CashAndCashEquivalentsAtCarryingValue"),
-      debt: extractLatest(factData, "LongTermDebt")
-    };
-    render(ticker, profile, financials, subData);
+    render(ticker, sub, fin);
   }catch(e){
-    document.getElementById('result').innerHTML = `<div class="card" style="border-color:#ff4444">❌ خطأ: ${e.message}<br><small>تأكد من أن SEC متاح - المصدر الرسمي يتطلب User-Agent</small></div>`;
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${e.message}<br><small>لو 404: تأكد إن api/sec.js مرفوع جوه فولدر api، وإنك فاتح موقع Vercel مش المعاينة</small></div>`;
   }
 }
-function extractLatest(factData, tag){
-  try{
-    const units = factData.facts?.["us-gaap"]?.[tag]?.units?.USD || factData.facts?.["us-gaap"]?.[tag]?.units?.shares || [];
-    if(!units.length) return null;
-    const sorted = units.sort((a,b)=> new Date(b.end) - new Date(a.end));
-    return {val: sorted[0].val, end: sorted[0].end, form: sorted[0].form};
-  }catch{return null}
-}
-function extractFact(factData, tag){
-  const v = extractLatest(factData, tag);
-  return v? v.val : null;
-}
-function render(ticker, p, f, subData){
-  const fmt = (o)=> o? `$${(o.val/1e9).toFixed(2)}B <small>(${o.end} - ${o.form})</small>` : "N/A";
-  const html = `
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('profile')">🏢 البطاقة العميقة</div>
-    <div class="tab" onclick="showTab('financial')">💰 المالية العميقة</div>
-    <div class="tab" onclick="showTab('expansion')">🌍 الانتشار</div>
-    <div class="tab" onclick="showTab('sources')">🔗 المصادر الموثوقة</div>
-  </div>
-  <div id="tab-profile" class="card">
-    <h3>🏢 ملف ${p.name} (${ticker}) - بطاقة عميقة <span class="source-tag">المصدر: SEC Submissions 10/10</span></h3>
+
+function render(ticker, p, f){
+  const fmt = o => o ? `$${(o.val/1e9).toFixed(2)}B <small>(${o.end})</small>` : 'N/A';
+  document.getElementById('result').innerHTML = `
+  <div class="card">
+    <h3>${p.name || ticker} (${ticker})</h3>
     <div class="grid">
-      <div class="item"><b>الموقع الرسمي</b><span>${p.website}</span></div>
-      <div class="item"><b>التليفون</b><span>${p.phone}</span></div>
-      <div class="item"><b>العنوان</b><span>${p.address}</span></div>
-            <div class="item"><b>التصنيف</b><span>${p.sic}</span></div>
-      <div class="item"><b>عدد الموظفين</b><span>${p.employees} (من 10-K)</span></div>
-      <div class="item"><b>CIK</b><span>${p.cik}</span></div>
-      <div class="item"><b>نهاية السنة المالية</b><span>${p.fiscalYearEnd}</span></div>
-      <div class="item"><b>آخر تقديم SEC</b><span>${subData.filings?.recent?.filingDate?.[0] || 'N/A'}</span></div>
+      <div class="item"><b>الموقع</b><span>${p.website || 'N/A'}</span></div>
+      <div class="item"><b>التليفون</b><span>${p.phone || 'N/A'}</span></div>
+      <div class="item"><b>العنوان</b><span>${p.address || 'N/A'}</span></div>
+      <div class="item"><b>التصنيف</b><span>${p.sicDescription || 'N/A'}</span></div>
+      <div class="item"><b>CIK</b><span>${p.cik || 'N/A'}</span></div>
+      <div class="item"><b>آخر تقديم</b><span>${p.lastFilingDate || 'N/A'} ${p.lastFilingForm || ''}</span></div>
     </div>
   </div>
-  <div id="tab-financial" class="card hidden">
-    <h3>💰 المالية العميقة - 6 مؤشرات <span class="source-tag">المصدر: SEC CompanyFacts 10/10</span></h3>
+  <div class="card">
+    <h3>المالية - آخر سنة 10-K</h3>
     <div class="grid">
-      <div class="item"><b>Revenue الإيرادات</b><span>${fmt(f.revenue)}</span></div>
-      <div class="item"><b>Net Income صافي الدخل</b><span>${fmt(f.netIncome)}</span></div>
-      <div class="item"><b>EPS ربحية السهم</b><span>${f.eps? f.eps.val : 'N/A'}</span></div>
-      <div class="item"><b>Assets الأصول</b><span>${fmt(f.assets)}</span></div>
-      <div class="item"><b>Cash الكاش</b><span>${fmt(f.cash)}</span></div>
-      <div class="item"><b>Debt الديون طويلة الأجل</b><span>${fmt(f.debt)}</span></div>
+      <div class="item"><b>Revenue</b><span>${fmt(f.revenue)}</span></div>
+      <div class="item"><b>Net Income</b><span>${fmt(f.netIncome)}</span></div>
+      <div class="item"><b>EPS</b><span>${f.eps ? f.eps.val : 'N/A'} <small>${f.eps ? '(' + f.eps.end + ')' : ''}</small></span></div>
+      <div class="item"><b>Assets</b><span>${fmt(f.assets)}</span></div>
+      <div class="item"><b>Cash</b><span>${fmt(f.cash)}</span></div>
+      <div class="item"><b>Debt</b><span>${fmt(f.debt)}</span></div>
     </div>
-  </div>
-  <div id="tab-expansion" class="card hidden">
-    <h3>🌍 الانتشار والكمية - جاهز للتوسع <span class="source-tag">المصدر: 10-K Item 1 Business</span></h3>
-    <div class="item" style="grid-column:1/-1">
-      <b>هذه البيانات العميقة (جغرافيا و قطاعات) موجودة في 10-K ونقدر نجيبها في V42:</b><br>
-      - Revenue by Geography: أمريكا % - الصين % - أوروبا %<br>
-      - Revenue by Segment: iPhone 52% - Services 22% (لـ Apple)<br>
-      - عدد المصانع والفروع والأسواق (52 دولة لـ Tesla)<br>
-      - براءات الاختراع (USPTO - مصدر 10/10 تاني)
-    </div>
-  </div>
-  <div id="tab-sources" class="card hidden">
-    <h3>🔗 خريطة المصادر الموثوقة - قابلة للتكرار لكل دولة</h3>
-    <div class="item" style="grid-column:1/-1">
-      <b>USA (نفذنا):</b><br>
-      1. SEC EDGAR CompanyFacts - مالية - 10/10<br>
-      2. SEC Submissions - بطاقة - 10/10<br>
-      3. SEC Tickers - ربط - 10/10<br><br>
-      <b>نفس النمط لأي دولة:</b><br>
-      مصر: EGX + الرقابة المالية<br>
-      السعودية: تداول Tadawul API<br>
-      الإمارات: ADX + SCA
-    </div>
-  </div>
-  `;
-  document.getElementById('result').innerHTML = html;
-}
-function showTab(name){
-  document.querySelectorAll('[id^=tab-]').forEach(e=>e.classList.add('hidden'));
-  document.getElementById('tab-'+name).classList.remove('hidden');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  event.target.classList.add('active');
-}
-</script>
-</body>
-</html>
-      <b>نفس النمط لأي دولة:</b><br>
-      مصر: EGX + الرقابة المالية<br>
-      السعودية: تداول Tadawul API<br>
-      الإمارات: ADX + SCA
-    </div>
-  </div>
-  `;
-  document.getElementById('result').innerHTML = html;
-}
-function showTab(name){
-  document.querySelectorAll('[id^=tab-]').forEach(e=>e.classList.add('hidden'));
-  document.getElementById('tab-'+name).classList.remove('hidden');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  event.target.classList.add('active');
-}
-</script>
-</body>
-</html>
-  `;
-  document.getElementById('result').innerHTML = html;
-}
-function showTab(name){
-  document.querySelectorAll('[id^=tab-]').forEach(e=>e.classList.add('hidden'));
-  document.getElementById('tab-'+name).classList.remove('hidden');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  event.target.classList.add('active');
+  </div>`;
 }
 </script>
 </body>
