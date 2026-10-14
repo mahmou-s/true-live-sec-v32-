@@ -92,6 +92,11 @@ function dropStale(out) {
 
 const hasAny = (o) => Object.values(o).some(Boolean);
 const firstForm = (o) => Object.values(o).find(Boolean)?.form || '20-F';
+const countFigures = (o) => Object.values(o).filter(Boolean).length;
+const newestEndOf = (o) => {
+  const ends = Object.values(o).filter(Boolean).map((x) => Date.parse(x.end));
+  return ends.length ? Math.max(...ends) : -Infinity;
+};
 
 // ---------- فحص شكل بيانات شركة (للتشخيص فقط) ----------
 function inspectFacts(facts) {
@@ -156,7 +161,9 @@ export default async function handler(req, res) {
     if (type === 'facts') {
       const g = data.facts;
 
-      // 1) شركة امريكية: US-GAAP + 10-K + دولار
+      // المرشحين: (1) امريكية 10-K بالدولار، (2) 20-F بمعيار US-GAAP وبعملة الشركة (زي ASML)،
+      // (3) 20-F بمعيار IFRS (زي TSM). بنختار صاحب احدث تاريخ بيانات (مش اول واحد لقيناه)
+      // علشان شركة غيّرت المعيار (زي Toyota) ما نعرضش ارقامها القديمة.
       const us = dropStale({
         revenue: latestAnnual(g, US_TAGS.revenue, 'USD'),
         netIncome: latestAnnual(g, US_TAGS.netIncome, 'USD'),
@@ -165,11 +172,6 @@ export default async function handler(req, res) {
         cash: latestAnnual(g, US_TAGS.cash, 'USD'),
         debt: latestAnnual(g, US_TAGS.debt, 'USD')
       });
-      if (hasAny(us)) {
-        return res.status(200).json({ standard: 'US-GAAP', form: '10-K', ...us });
-      }
-
-      // 2) شركة اجنبية بتقدم 20-F بمعيار US-GAAP (زي ASML) وبعملتها
       const usForeign = dropStale({
         revenue: pickFacts(g, 'us-gaap', US_TAGS.revenue, FOREIGN_FORMS),
         netIncome: pickFacts(g, 'us-gaap', US_TAGS.netIncome, FOREIGN_FORMS),
@@ -178,11 +180,7 @@ export default async function handler(req, res) {
         cash: pickFacts(g, 'us-gaap', US_TAGS.cash, FOREIGN_FORMS),
         debt: pickFacts(g, 'us-gaap', US_TAGS.debt, FOREIGN_FORMS)
       });
-      if (hasAny(usForeign)) {
-        return res.status(200).json({ standard: 'US-GAAP', form: firstForm(usForeign), ...usForeign });
-      }
-
-      // 3) شركة اجنبية بمعيار IFRS (زي TSM) - الديون مش معروضة لانها مش مؤكدة
+      // IFRS: الديون مش معروضة لانها مش مؤكدة
       const ifrs = dropStale({
         revenue: pickFacts(g, 'ifrs-full', IFRS_TAGS.revenue, FOREIGN_FORMS),
         netIncome: pickFacts(g, 'ifrs-full', IFRS_TAGS.netIncome, FOREIGN_FORMS),
@@ -191,10 +189,20 @@ export default async function handler(req, res) {
         cash: pickFacts(g, 'ifrs-full', IFRS_TAGS.cash, FOREIGN_FORMS),
         debt: null
       });
-      if (hasAny(ifrs)) {
-        return res.status(200).json({ standard: 'IFRS', form: firstForm(ifrs), ...ifrs });
-      }
 
+      const candidates = [
+        { standard: 'US-GAAP', form: '10-K', data: us },
+        { standard: 'US-GAAP', form: null, data: usForeign },
+        { standard: 'IFRS', form: null, data: ifrs }
+      ]
+        .map((c, idx) => ({ ...c, idx, end: newestEndOf(c.data), n: countFigures(c.data) }))
+        .filter((c) => c.n > 0)
+        .sort((a, b) => b.end - a.end || b.n - a.n || a.idx - b.idx);
+
+      if (candidates.length) {
+        const c = candidates[0];
+        return res.status(200).json({ standard: c.standard, form: c.form || firstForm(c.data), ...c.data });
+      }
       return res.status(200).json({ standard: null, form: null, ...us });
     }
 
