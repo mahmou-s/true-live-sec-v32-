@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRUE LIVE SEC V48</title>
+<title>TRUE LIVE SEC V49</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
@@ -38,7 +38,7 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 <body>
 <div class="container">
   <div class="header">
-    <h1>TRUE LIVE SEC V48</h1>
+    <h1>TRUE LIVE SEC V49</h1>
     <div>كل شركات SEC - بحث بالاسم او الرمز</div>
     <div>
       <span class="badge">SEC EDGAR</span>
@@ -57,7 +57,7 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 
   <div class="chips" id="chips"></div>
   <div id="result"></div>
-  <div class="footer">V48 - المصدر: SEC.gov عبر /api/sec</div>
+  <div class="footer">V49 - المصدر: SEC.gov عبر /api/sec</div>
 </div>
 
 <script>
@@ -159,24 +159,29 @@ async function load(c){
   }
 }
 
-function money(v){
+function money(v, cur){
+  const c = cur || 'USD';
+  const pre = c === 'USD' ? '$' : c + ' ';
   const a = Math.abs(v), s = v < 0 ? '-' : '';
-  if(a >= 1e9) return s + '$' + (a/1e9).toFixed(2) + 'B';
-  if(a >= 1e6) return s + '$' + (a/1e6).toFixed(2) + 'M';
-  if(a >= 1e3) return s + '$' + (a/1e3).toFixed(1) + 'K';
-  return s + '$' + a.toFixed(0);
+  if(a >= 1e12) return s + pre + (a/1e12).toFixed(2) + 'T';
+  if(a >= 1e9) return s + pre + (a/1e9).toFixed(2) + 'B';
+  if(a >= 1e6) return s + pre + (a/1e6).toFixed(2) + 'M';
+  if(a >= 1e3) return s + pre + (a/1e3).toFixed(1) + 'K';
+  return s + pre + a.toFixed(0);
 }
 
 function render(ticker, p, f){
-  const fmt = o => o ? `<bdi dir="ltr">${money(o.val)} <small>(${esc(o.end)})</small></bdi>` : 'N/A';
+  const fmt = o => o ? `<bdi dir="ltr">${money(o.val, o.cur)} <small>(${esc(o.end)})</small>${o.usd ? `<br><small>≈ ${money(o.usd.val, 'USD')}</small>` : ''}</bdi>` : 'N/A';
   const web = p.website ? esc(p.website) : 'N/A';
+  const form = f.form || '10-K';
+  const ifrs = f.standard === 'IFRS';
   const none = ![f.revenue, f.netIncome, f.eps, f.assets, f.cash, f.debt].some(Boolean);
-  const secLink = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(p.cik || '')}&type=10-K&dateb=&owner=include&count=40`;
+  const secLink = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(p.cik || '')}&type=${encodeURIComponent(form)}&dateb=&owner=include&count=40`;
   const finBlock = none
     ? `<div class="item" style="grid-column:1/-1"><span>ما لقيناش أرقام سنوية (10-K) لهذا السجل في SEC.</span><br><small>أسباب محتملة: شركة أجنبية بتقدّم تقريرها بنموذج 20-F، أو سجل جديد لسه ما قدّمش تقرير سنوي، أو أرقام مسجلة بأسماء غير قياسية.</small></div>`
     : `<div class="item"><b>Revenue</b><span>${fmt(f.revenue)}</span></div>
       <div class="item"><b>Net Income</b><span>${fmt(f.netIncome)}</span></div>
-      <div class="item"><b>EPS</b><span><bdi dir="ltr">${f.eps ? esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small></bdi></span></div>
+      <div class="item"><b>EPS</b><span><bdi dir="ltr">${f.eps ? (f.eps.cur && f.eps.cur !== 'USD' ? esc(f.eps.cur) + ' ' : '') + esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small>${f.eps && f.eps.usd ? `<br><small>≈ $${esc(f.eps.usd.val)}</small>` : ''}</bdi></span></div>
       <div class="item"><b>Assets</b><span>${fmt(f.assets)}</span></div>
       <div class="item"><b>Cash</b><span>${fmt(f.cash)}</span></div>
       <div class="item"><b>Debt</b><span>${fmt(f.debt)}</span></div>`;
@@ -193,8 +198,9 @@ function render(ticker, p, f){
     </div>
   </div>
   <div class="card">
-    <h3>المالية - آخر سنة <bdi>10-K</bdi></h3>
+    <h3>المالية - آخر سنة <bdi>${esc(form)}</bdi>${f.standard ? ' · <bdi>' + esc(f.standard) + '</bdi>' : ''}</h3>
     <div class="grid">${finBlock}</div>
+    ${ifrs && !none ? `<div class="src">الأرقام بعملة الشركة حسب تقريرها. ما يعادلها بالدولار كما أفصحت عنه الشركة (≈). الربحية لكل سهم عادي (مش لكل ADR). الديون غير معروضة لهذه الشركات حاليا.</div>` : ''}
     <div class="src"><a href="${secLink}" target="_blank" rel="noopener">تحقق من المصدر على SEC.gov</a></div>
   </div>`;
 }
