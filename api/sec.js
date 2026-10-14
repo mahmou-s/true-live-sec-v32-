@@ -2,13 +2,34 @@
 // /api/sec?type=tickers
 // /api/sec?type=submissions&cik=1318605
 // /api/sec?type=facts&cik=1318605
+// /api/sec?type=inspect&cik=937966   (تشخيص فقط)
 
 // غيّر الإيميل ده لإيميلك الحقيقي - SEC بيطلبه
 const UA = 'TrueLiveSEC/1.0 (mahmoudsalem2080@gmail.com)';
 
 const TYPES = ['tickers', 'submissions', 'facts', 'inspect'];
 
-// ---------- شركات امريكية (US-GAAP / 10-K) ----------
+// ---------- اسماء الارقام ----------
+const US_TAGS = {
+  revenue: ['Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax', 'SalesRevenueNet'],
+  netIncome: ['NetIncomeLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic', 'ProfitLoss'],
+  eps: ['EarningsPerShareBasic', 'EarningsPerShareDiluted'],
+  assets: ['Assets'],
+  cash: ['CashAndCashEquivalentsAtCarryingValue'],
+  debt: ['LongTermDebt', 'LongTermDebtNoncurrent', 'LongTermDebtAndCapitalLeaseObligations', 'DebtAndCapitalLeaseObligations']
+};
+
+const IFRS_TAGS = {
+  revenue: ['Revenue', 'RevenueFromContractsWithCustomers'],
+  netIncome: ['ProfitLossAttributableToOwnersOfParent', 'ProfitLoss'],
+  eps: ['BasicEarningsLossPerShare', 'DilutedEarningsLossPerShare'],
+  assets: ['Assets'],
+  cash: ['CashAndCashEquivalents']
+};
+
+const FOREIGN_FORMS = ['20-F'];
+
+// ---------- شركات امريكية (US-GAAP / 10-K / دولار) ----------
 function latestAnnual(facts, tags, unit) {
   let best = null;
   for (const tag of tags) {
@@ -22,15 +43,7 @@ function latestAnnual(facts, tags, unit) {
   return best;
 }
 
-// ---------- شركات اجنبية (IFRS / 20-F) ----------
-const IFRS_TAGS = {
-  revenue: ['Revenue', 'RevenueFromContractsWithCustomers'],
-  netIncome: ['ProfitLossAttributableToOwnersOfParent', 'ProfitLoss'],
-  eps: ['BasicEarningsLossPerShare', 'DilutedEarningsLossPerShare'],
-  assets: ['Assets'],
-  cash: ['CashAndCashEquivalents']
-};
-
+// ---------- شركات اجنبية (20-F / اي عملة / US-GAAP او IFRS) ----------
 // فترة سنوية تقريباً (لو الرقم ليه تاريخ بداية)
 function isAnnualPeriod(u) {
   if (!u.start) return true;
@@ -38,16 +51,16 @@ function isAnnualPeriod(u) {
   return days >= 340 && days <= 390;
 }
 
-// احدث قيمة سنوية 20-F لكل وحدة (عملة)
-function bestByUnit(facts, tags) {
+// احدث قيمة سنوية لكل وحدة (عملة)
+function bestByUnit(facts, taxonomy, tags, forms) {
   const res = {};
   for (const tag of tags) {
-    const units = facts?.['ifrs-full']?.[tag]?.units;
+    const units = facts?.[taxonomy]?.[tag]?.units;
     if (!units) continue;
     for (const [unit, arr] of Object.entries(units)) {
       for (const u of arr) {
-        if (u.form !== '20-F' || u.fp !== 'FY' || !isAnnualPeriod(u)) continue;
-        if (!res[unit] || u.end > res[unit].end) res[unit] = { val: u.val, end: u.end };
+        if (!forms.includes(u.form) || u.fp !== 'FY' || !isAnnualPeriod(u)) continue;
+        if (!res[unit] || u.end > res[unit].end) res[unit] = { val: u.val, end: u.end, form: u.form };
       }
     }
   }
@@ -55,15 +68,15 @@ function bestByUnit(facts, tags) {
 }
 
 // العملة الاساسية = عملة الشركة (غير الدولار لو موجودة)، والدولار كمعلومة اضافية
-function pickIfrs(facts, tags) {
-  const byUnit = bestByUnit(facts, tags);
+function pickFacts(facts, taxonomy, tags, forms) {
+  const byUnit = bestByUnit(facts, taxonomy, tags, forms);
   const names = Object.keys(byUnit);
   if (!names.length) return null;
   const cur = (n) => n.split('/')[0];
   const primary = names.find((n) => cur(n) !== 'USD') || names[0];
   const usdName = names.find((n) => cur(n) === 'USD' && n !== primary);
   const usd = usdName && byUnit[usdName].end === byUnit[primary].end ? { val: byUnit[usdName].val } : null;
-  return { val: byUnit[primary].val, end: byUnit[primary].end, cur: cur(primary), usd };
+  return { val: byUnit[primary].val, end: byUnit[primary].end, cur: cur(primary), usd, form: byUnit[primary].form };
 }
 
 // لو رقم اقدم من احدث رقم بأكتر من 400 يوم نخفيه بدل ما نعرض رقم قديم مضلل
@@ -76,6 +89,9 @@ function dropStale(out) {
   }
   return out;
 }
+
+const hasAny = (o) => Object.values(o).some(Boolean);
+const firstForm = (o) => Object.values(o).find(Boolean)?.form || '20-F';
 
 // ---------- فحص شكل بيانات شركة (للتشخيص فقط) ----------
 function inspectFacts(facts) {
@@ -140,33 +156,43 @@ export default async function handler(req, res) {
     if (type === 'facts') {
       const g = data.facts;
 
+      // 1) شركة امريكية: US-GAAP + 10-K + دولار
       const us = dropStale({
-        revenue: latestAnnual(g, [
-          'Revenues',
-          'RevenueFromContractWithCustomerExcludingAssessedTax',
-          'SalesRevenueNet'
-        ], 'USD'),
-        netIncome: latestAnnual(g, ['NetIncomeLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic', 'ProfitLoss'], 'USD'),
-        eps: latestAnnual(g, ['EarningsPerShareBasic', 'EarningsPerShareDiluted'], 'USD/shares'),
-        assets: latestAnnual(g, ['Assets'], 'USD'),
-        cash: latestAnnual(g, ['CashAndCashEquivalentsAtCarryingValue'], 'USD'),
-        debt: latestAnnual(g, ['LongTermDebt', 'LongTermDebtNoncurrent', 'LongTermDebtAndCapitalLeaseObligations', 'DebtAndCapitalLeaseObligations'], 'USD')
+        revenue: latestAnnual(g, US_TAGS.revenue, 'USD'),
+        netIncome: latestAnnual(g, US_TAGS.netIncome, 'USD'),
+        eps: latestAnnual(g, US_TAGS.eps, 'USD/shares'),
+        assets: latestAnnual(g, US_TAGS.assets, 'USD'),
+        cash: latestAnnual(g, US_TAGS.cash, 'USD'),
+        debt: latestAnnual(g, US_TAGS.debt, 'USD')
       });
-      if (Object.values(us).some(Boolean)) {
+      if (hasAny(us)) {
         return res.status(200).json({ standard: 'US-GAAP', form: '10-K', ...us });
       }
 
-      // مفيش ارقام امريكية: نجرب IFRS / 20-F (الديون مش معروضة لهذه الشركات حالياً لانها مش مؤكدة)
+      // 2) شركة اجنبية بتقدم 20-F بمعيار US-GAAP (زي ASML) وبعملتها
+      const usForeign = dropStale({
+        revenue: pickFacts(g, 'us-gaap', US_TAGS.revenue, FOREIGN_FORMS),
+        netIncome: pickFacts(g, 'us-gaap', US_TAGS.netIncome, FOREIGN_FORMS),
+        eps: pickFacts(g, 'us-gaap', US_TAGS.eps, FOREIGN_FORMS),
+        assets: pickFacts(g, 'us-gaap', US_TAGS.assets, FOREIGN_FORMS),
+        cash: pickFacts(g, 'us-gaap', US_TAGS.cash, FOREIGN_FORMS),
+        debt: pickFacts(g, 'us-gaap', US_TAGS.debt, FOREIGN_FORMS)
+      });
+      if (hasAny(usForeign)) {
+        return res.status(200).json({ standard: 'US-GAAP', form: firstForm(usForeign), ...usForeign });
+      }
+
+      // 3) شركة اجنبية بمعيار IFRS (زي TSM) - الديون مش معروضة لانها مش مؤكدة
       const ifrs = dropStale({
-        revenue: pickIfrs(g, IFRS_TAGS.revenue),
-        netIncome: pickIfrs(g, IFRS_TAGS.netIncome),
-        eps: pickIfrs(g, IFRS_TAGS.eps),
-        assets: pickIfrs(g, IFRS_TAGS.assets),
-        cash: pickIfrs(g, IFRS_TAGS.cash),
+        revenue: pickFacts(g, 'ifrs-full', IFRS_TAGS.revenue, FOREIGN_FORMS),
+        netIncome: pickFacts(g, 'ifrs-full', IFRS_TAGS.netIncome, FOREIGN_FORMS),
+        eps: pickFacts(g, 'ifrs-full', IFRS_TAGS.eps, FOREIGN_FORMS),
+        assets: pickFacts(g, 'ifrs-full', IFRS_TAGS.assets, FOREIGN_FORMS),
+        cash: pickFacts(g, 'ifrs-full', IFRS_TAGS.cash, FOREIGN_FORMS),
         debt: null
       });
-      if (Object.values(ifrs).some(Boolean)) {
-        return res.status(200).json({ standard: 'IFRS', form: '20-F', ...ifrs });
+      if (hasAny(ifrs)) {
+        return res.status(200).json({ standard: 'IFRS', form: firstForm(ifrs), ...ifrs });
       }
 
       return res.status(200).json({ standard: null, form: null, ...us });
