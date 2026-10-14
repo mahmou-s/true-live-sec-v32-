@@ -6,7 +6,7 @@
 // غيّر الإيميل ده لإيميلك الحقيقي - SEC بيطلبه
 const UA = 'TrueLiveSEC/1.0 (mahmoudsalem2080@gmail.com)';
 
-const TYPES = ['tickers', 'submissions', 'facts'];
+const TYPES = ['tickers', 'submissions', 'facts', 'inspect'];
 
 // ---------- شركات امريكية (US-GAAP / 10-K) ----------
 function latestAnnual(facts, tags, unit) {
@@ -77,6 +77,35 @@ function dropStale(out) {
   return out;
 }
 
+// ---------- فحص شكل بيانات شركة (للتشخيص فقط) ----------
+function inspectFacts(facts) {
+  const re = /revenue|sales|netincome|profit|assets|cash|borrowing|debt|earningspershare|equity/i;
+  const taxonomies = {};
+  const formsCount = {};
+  const tags = [];
+  for (const tax of Object.keys(facts || {})) {
+    taxonomies[tax] = Object.keys(facts[tax]).length;
+    for (const tag of Object.keys(facts[tax])) {
+      const units = facts[tax][tag].units || {};
+      const unitNames = Object.keys(units);
+      const forms = new Set();
+      const fps = new Set();
+      let latest = '';
+      for (const un of unitNames) {
+        for (const u of units[un]) {
+          forms.add(u.form);
+          fps.add(u.fp);
+          formsCount[u.form] = (formsCount[u.form] || 0) + 1;
+          if (u.end > latest) latest = u.end;
+        }
+      }
+      if (re.test(tag)) tags.push({ t: tax + '/' + tag, u: unitNames, f: [...forms], p: [...fps], e: latest });
+    }
+  }
+  tags.sort((a, b) => (a.e < b.e ? 1 : -1));
+  return { taxonomies, forms: formsCount, shown: Math.min(tags.length, 40), total: tags.length, tags: tags.slice(0, 40) };
+}
+
 export default async function handler(req, res) {
   const type = String(req.query.type || '');
   const rawCik = String(req.query.cik || '');
@@ -91,7 +120,7 @@ export default async function handler(req, res) {
   const cik = rawCik.padStart(10, '0');
   let url = 'https://www.sec.gov/files/company_tickers.json';
   if (type === 'submissions') url = `https://data.sec.gov/submissions/CIK${cik}.json`;
-  if (type === 'facts') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+  if (type === 'facts' || type === 'inspect') url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
 
   try {
     const r = await fetch(url, {
@@ -103,6 +132,10 @@ export default async function handler(req, res) {
     const data = await r.json();
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+
+    if (type === 'inspect') {
+      return res.status(200).json({ name: data.entityName, ...inspectFacts(data.facts) });
+    }
 
     if (type === 'facts') {
       const g = data.facts;
@@ -141,6 +174,19 @@ export default async function handler(req, res) {
 
     if (type === 'submissions') {
       const m = data.addresses?.mailing;
+      // احدث تقرير سنوي اتقدم فعلاً (10-K / 20-F / 40-F)
+      const rec = data.filings?.recent;
+      let lastAnnualForm = null;
+      let lastAnnualDate = null;
+      if (rec?.form) {
+        for (let i = 0; i < rec.form.length; i++) {
+          if (['10-K', '20-F', '40-F'].includes(rec.form[i])) {
+            lastAnnualForm = rec.form[i];
+            lastAnnualDate = rec.filingDate?.[i] || null;
+            break;
+          }
+        }
+      }
       return res.status(200).json({
         cik: String(data.cik || rawCik),
         name: data.name,
@@ -149,7 +195,9 @@ export default async function handler(req, res) {
         sicDescription: data.sicDescription,
         address: m ? [m.city, m.stateOrCountry].filter(Boolean).join(', ') : null,
         lastFilingDate: data.filings?.recent?.filingDate?.[0] || null,
-        lastFilingForm: data.filings?.recent?.form?.[0] || null
+        lastFilingForm: data.filings?.recent?.form?.[0] || null,
+        lastAnnualForm,
+        lastAnnualDate
       });
     }
 
