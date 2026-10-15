@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRUE LIVE SEC V51</title>
+<title>TRUE LIVE SEC V52</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
@@ -47,7 +47,7 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 <body>
 <div class="container">
   <div class="header">
-    <h1>TRUE LIVE SEC V51</h1>
+    <h1>TRUE LIVE SEC V52</h1>
     <div>كل شركات SEC - بحث بالاسم او الرمز</div>
     <div>
       <span class="badge">SEC EDGAR</span>
@@ -67,7 +67,7 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
   <div class="chips" id="chips"></div>
   <button class="alt" onclick="searchGleif()">بحث عالمي في سجل الكيانات (GLEIF)</button>
   <div id="result"></div>
-  <div class="footer">V51 - المصدر: SEC.gov عبر /api/sec</div>
+  <div class="footer">V52 - المصادر: SEC.gov وGLEIF عبر /api</div>
 </div>
 
 <script>
@@ -299,9 +299,8 @@ function backToGleif(){
 }
 
 function renderGleifCard(r, pub){
-  const hqCountry = r.hqCountry || r.country;
-  const hqCity = r.hqCity || r.city;
   const legal = [r.city, r.region, countryName(r.country)].filter(Boolean).join('، ');
+  const hq = (r.hqCity || r.hqCountry) ? [r.hqCity, r.hqCountry ? countryName(r.hqCountry) : null].filter(Boolean).join('، ') : null;
   const item = (label, val) => `<div class="item"><b>${label}</b><span><bdi>${val == null || val === '' ? 'N/A' : val}</bdi></span></div>`;
   document.getElementById('result').innerHTML = `
   <div class="card">
@@ -309,10 +308,11 @@ function renderGleifCard(r, pub){
     <div class="grid">
       ${item('الحالة', statusTag(r.status) || 'N/A')}
       ${item('حالة التسجيل', esc(r.regStatus))}
-      ${item('الدولة (المقر)', esc(countryName(hqCountry)))}
-      ${item('المدينة (المقر)', esc(hqCity))}
-      ${item('عنوان المقر', esc(r.hqAddress))}
+      ${item('الدولة (العنوان القانوني)', esc(countryName(r.country)))}
       ${item('العنوان القانوني', esc(legal))}
+      ${item('تفاصيل العنوان القانوني', esc(r.address))}
+      ${item('المقر حسب GLEIF', esc(hq))}
+      ${item('عنوان المقر', esc(r.hqAddress))}
       ${item('الولاية القضائية', esc(r.jurisdiction))}
       ${item('رقم السجل الوطني', esc(r.registeredAs))}
       ${item('تاريخ التأسيس', esc(dateOnly(r.created)))}
@@ -320,7 +320,7 @@ function renderGleifCard(r, pub){
       ${item('LEI', esc(r.lei))}
       ${item('آخر تحديث للسجل', esc(dateOnly(r.updated)))}
     </div>
-    <div class="src">بطاقة هوية فقط من GLEIF، بدون بيانات مالية. تاريخ نشر بيانات GLEIF: <bdi>${esc(dateOnly(pub))}</bdi>.</div>
+    <div class="src">بطاقة هوية فقط من GLEIF، بدون بيانات مالية. العنوان القانوني هو مكان تسجيل الكيان، والمقر بيتسجّل بشكل منفصل في GLEIF وممكن يختلف عنه. تاريخ نشر بيانات GLEIF: <bdi>${esc(dateOnly(pub))}</bdi>.</div>
     <div class="src"><a href="https://search.gleif.org/#/record/${encodeURIComponent(r.lei || '')}" target="_blank" rel="noopener">تحقق من المصدر على GLEIF</a>${lastGleif ? ' · <a href="#" onclick="backToGleif();return false;">رجوع للنتائج</a>' : ''}</div>
   </div>`;
 }
