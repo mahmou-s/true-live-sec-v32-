@@ -1,41 +1,51 @@
-// Vercel serverless function - GLEIF (مرحلة تشخيص)
-// /api/lei?type=probe&q=ford      (يجرّب كذا طريقة بحث ويرجّع ملخص صغير)
-// /api/lei?type=suggest&q=ford    (الرد الخام)
-// /api/lei?type=record&lei=XXXXXXXXXXXXXXXXXXXX
+// Vercel serverless function - GLEIF (سجل الكيانات القانونية العالمي)
+// /api/lei?type=search&q=Ford%20Motor%20Company   (قائمة نتائج مرتبة)
+// /api/lei?type=record&lei=XXXXXXXXXXXXXXXXXXXX   (بطاقة هوية)
 
 const BASE = 'https://api.gleif.org/api/v1';
 const UA = 'TrueLiveSEC/1.0 (mahmoudsalem2080@gmail.com)';
-const TYPES = ['suggest', 'record', 'probe'];
+const TYPES = ['search', 'record'];
 const HEADERS = { Accept: 'application/vnd.api+json', 'User-Agent': UA };
 
-function summarize(j) {
-  const d = j && j.data;
-  const arr = Array.isArray(d) ? d : d ? [d] : [];
-  const f = arr[0];
+// تبسيط سجل GLEIF الى حقول بسيطة
+function normRecord(d) {
+  const a = d?.attributes || {};
+  const e = a.entity || {};
+  const reg = a.registration || {};
+  const addr = e.legalAddress || {};
   return {
-    n: arr.length,
-    total: j?.meta?.pagination?.total ?? null,
-    first: f
-      ? {
-          id: f.id,
-          type: f.type,
-          attrKeys: Object.keys(f.attributes || {}).slice(0, 12),
-          name: f.attributes?.entity?.legalName?.name ?? f.attributes?.value ?? null,
-          relKeys: Object.keys(f.relationships || {}).slice(0, 8)
-        }
-      : null
+    lei: a.lei || d?.id || null,
+    name: e.legalName?.name || null,
+    status: e.status || null,
+    regStatus: reg.status || null,
+    country: addr.country || null,
+    city: addr.city || null,
+    region: addr.region || null,
+    address: Array.isArray(addr.addressLines) && addr.addressLines.length ? addr.addressLines.join(', ') : null,
+    postal: addr.postalCode || null,
+    jurisdiction: e.jurisdiction || null,
+    registeredAs: e.registeredAs || null,
+    registeredAt: e.registeredAt?.id || null,
+    legalForm: e.legalForm?.id || null,
+    category: e.category || null,
+    created: e.creationDate || null,
+    updated: reg.lastUpdateDate || null,
+    renewal: reg.nextRenewalDate || null
   };
 }
 
-async function tryUrl(label, url) {
-  try {
-    const r = await fetch(url, { headers: HEADERS });
-    if (!r.ok) return { label, status: r.status };
-    const j = await r.json();
-    return { label, status: r.status, ...summarize(j) };
-  } catch (e) {
-    return { label, error: String(e.message || e).slice(0, 120) };
-  }
+// ترتيب: اسم مطابق تماما، ثم يبدأ بالكلمة، ثم باقي النتائج. والنشط اولا داخل كل مجموعة
+function rank(items, q) {
+  const needle = q.trim().toLowerCase();
+  const score = (it) => {
+    const n = (it.name || '').toLowerCase();
+    const g = n === needle ? 0 : n.startsWith(needle) ? 1 : 2;
+    return g * 2 + (it.status === 'ACTIVE' ? 0 : 1);
+  };
+  return items
+    .map((it, i) => ({ it, i, s: score(it) }))
+    .sort((a, b) => a.s - b.s || a.i - b.i)
+    .map((x) => x.it);
 }
 
 export default async function handler(req, res) {
@@ -44,28 +54,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid type' });
   }
 
-  if (type === 'probe') {
-    const q = String(req.query.q || '').trim().slice(0, 100);
-    if (q.length < 2) return res.status(400).json({ error: 'q too short' });
-    const e = encodeURIComponent(q);
-    const tests = [
-      ['fuzzy entity.legalName', `${BASE}/fuzzycompletions?field=entity.legalName&q=${e}`],
-      ['fuzzy fulltext', `${BASE}/fuzzycompletions?field=fulltext&q=${e}`],
-      ['auto fullName', `${BASE}/autocompletions?field=fullName&q=${e}`],
-      ['auto entity.legalName', `${BASE}/autocompletions?field=entity.legalName&q=${e}`],
-      ['records fulltext', `${BASE}/lei-records?filter%5Bfulltext%5D=${e}&page%5Bsize%5D=5`],
-      ['records legalName exact', `${BASE}/lei-records?filter%5Bentity.legalName%5D=${e}&page%5Bsize%5D=5`]
-    ];
-    const results = await Promise.all(tests.map(([l, u]) => tryUrl(l, u)));
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ q, results });
-  }
-
   let url;
-  if (type === 'suggest') {
-    const q = String(req.query.q || '').trim().slice(0, 100);
+  let q = '';
+  if (type === 'search') {
+    q = String(req.query.q || '').trim().slice(0, 100);
     if (q.length < 2) return res.status(400).json({ error: 'q too short' });
-    url = `${BASE}/fuzzycompletions?field=entity.legalName&q=${encodeURIComponent(q)}`;
+    url = `${BASE}/lei-records?filter%5Bentity.legalName%5D=${encodeURIComponent(q)}&page%5Bsize%5D=30`;
   } else {
     const lei = String(req.query.lei || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{20}$/.test(lei)) return res.status(400).json({ error: 'Invalid LEI' });
@@ -78,14 +72,29 @@ export default async function handler(req, res) {
       return res.status(r.status).json({ error: `GLEIF ${r.status}` });
     }
     const data = await r.json();
+    const publishDate = data?.meta?.goldenCopy?.publishDate || null;
+
+    if (type === 'search') {
+      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
+      const list = Array.isArray(data.data) ? data.data.map(normRecord) : [];
+      const items = rank(list, q).map((x) => ({
+        lei: x.lei,
+        name: x.name,
+        status: x.status,
+        country: x.country,
+        city: x.city
+      }));
+      return res.status(200).json({
+        q,
+        total: data?.meta?.pagination?.total ?? null,
+        shown: items.length,
+        publishDate,
+        items
+      });
+    }
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
-
-    if (type === 'suggest') {
-      const cut = (x, n) => (Array.isArray(x) ? x.slice(0, n) : x);
-      return res.status(200).json({ raw: { ...data, data: cut(data.data, 8), included: cut(data.included, 5) } });
-    }
-    return res.status(200).json({ raw: data });
+    return res.status(200).json({ publishDate, record: normRecord(data.data) });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
