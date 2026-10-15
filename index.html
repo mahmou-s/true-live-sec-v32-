@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRUE LIVE SEC V50</title>
+<title>TRUE LIVE SEC V51</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
@@ -33,13 +33,21 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
 .src{margin-top:12px;font-size:12px}
 .src a{color:#00ff88}
 .warn{border:1px solid #f59e0b;color:#fbbf24}
+.alt{background:transparent;border:1px solid #00ff88;color:#00ff88;padding:10px 16px;border-radius:10px;cursor:pointer;font-size:13px;margin-bottom:16px}
+.gitem{padding:12px;border:1px solid #1e3a5f;border-radius:10px;background:#13233f;margin-bottom:8px;cursor:pointer}
+.gitem:hover{border-color:#00ff88}
+.gitem .gn{font-weight:bold;font-size:14px}
+.gitem .gm{font-size:12px;color:#94a3b8;margin-top:4px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#1e293b;border:1px solid #334155;margin-inline-start:6px}
+.tag.ok{border-color:#00ff88;color:#00ff88}
+.tag.bad{border-color:#f59e0b;color:#fbbf24}
 .footer{text-align:center;font-size:11px;color:#64748b;margin-top:30px}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>TRUE LIVE SEC V50</h1>
+    <h1>TRUE LIVE SEC V51</h1>
     <div>كل شركات SEC - بحث بالاسم او الرمز</div>
     <div>
       <span class="badge">SEC EDGAR</span>
@@ -57,8 +65,9 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
   </div>
 
   <div class="chips" id="chips"></div>
+  <button class="alt" onclick="searchGleif()">بحث عالمي في سجل الكيانات (GLEIF)</button>
   <div id="result"></div>
-  <div class="footer">V50 - المصدر: SEC.gov عبر /api/sec</div>
+  <div class="footer">V51 - المصدر: SEC.gov عبر /api/sec</div>
 </div>
 
 <script>
@@ -212,6 +221,107 @@ function render(ticker, p, f){
     <div class="grid">${finBlock}${warn}</div>
     ${notes.length ? `<div class="src">${notes.join(' ')}</div>` : ''}
     <div class="src"><a href="${secLink}" target="_blank" rel="noopener">تحقق من المصدر على SEC.gov</a></div>
+  </div>`;
+}
+
+// ================= GLEIF: بحث عالمي وبطاقة هوية =================
+let lastGleif = null;
+
+async function leiApi(params){
+  const r = await fetch('/api/lei?' + new URLSearchParams(params));
+  if(!r.ok){
+    let msg = 'HTTP ' + r.status;
+    try{ msg = (await r.json()).error || msg; }catch(e){}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+function countryName(c){
+  if(!c) return 'N/A';
+  try{ return new Intl.DisplayNames(['ar'], {type:'region'}).of(c) || c; }catch(e){ return c; }
+}
+
+function statusTag(s){
+  if(s === 'ACTIVE') return '<span class="tag ok">نشط</span>';
+  if(s === 'INACTIVE') return '<span class="tag bad">غير نشط</span>';
+  return s ? '<span class="tag">' + esc(s) + '</span>' : '';
+}
+
+const dateOnly = s => s ? String(s).slice(0, 10) : 'N/A';
+
+async function searchGleif(){
+  const box = document.getElementById('result');
+  const q = document.getElementById('q').value.trim();
+  document.getElementById('sugg').style.display = 'none';
+  if(q.length < 2){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">اكتب اسم الشركة (حرفين على الاقل) في الخانة فوق، وبعدين دوس بحث عالمي.</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="card">جاري البحث في سجل GLEIF عن "${esc(q)}"...</div>`;
+  try{
+    const d = await leiApi({type:'search', q});
+    lastGleif = d;
+    renderGleifList(d);
+  }catch(e){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderGleifList(d){
+  const items = d.items || [];
+  const rows = items.map(x => `<div class="gitem" onclick="loadLei('${esc(x.lei)}')">
+      <div class="gn"><bdi>${esc(x.name || 'N/A')}</bdi></div>
+      <div class="gm"><bdi>${esc(x.city || '')}</bdi> · ${esc(countryName(x.country))} ${statusTag(x.status)}</div>
+    </div>`).join('');
+  const more = (d.total && d.total > d.shown) ? ' (عرض ' + d.shown + ' من ' + d.total + ')' : '';
+  document.getElementById('result').innerHTML = `
+  <div class="card">
+    <h3>نتائج GLEIF${esc(more)}</h3>
+    ${rows || '<div class="item">ما لقيناش نتائج بالاسم ده. جرب الاسم القانوني الكامل بالانجليزي.</div>'}
+    <div class="src">GLEIF سجل عالمي للكيانات القانونية، بيشمل شركات وصناديق وجهات تانية، ومش كل شركة موجودة فيه. البحث بكلمات الاسم، ولو الشركة المطلوبة مش ظاهرة جرّب اسمها القانوني الكامل.</div>
+  </div>`;
+}
+
+async function loadLei(lei){
+  const box = document.getElementById('result');
+  box.innerHTML = `<div class="card">جاري جلب بطاقة الهوية من GLEIF...</div>`;
+  try{
+    const d = await leiApi({type:'record', lei});
+    renderGleifCard(d.record, d.publishDate);
+  }catch(e){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}</div>`;
+  }
+}
+
+function backToGleif(){
+  if(lastGleif) renderGleifList(lastGleif);
+}
+
+function renderGleifCard(r, pub){
+  const hqCountry = r.hqCountry || r.country;
+  const hqCity = r.hqCity || r.city;
+  const legal = [r.city, r.region, countryName(r.country)].filter(Boolean).join('، ');
+  const item = (label, val) => `<div class="item"><b>${label}</b><span><bdi>${val == null || val === '' ? 'N/A' : val}</bdi></span></div>`;
+  document.getElementById('result').innerHTML = `
+  <div class="card">
+    <h3><bdi>${esc(r.name || 'N/A')}</bdi> <span class="badge">GLEIF</span></h3>
+    <div class="grid">
+      ${item('الحالة', statusTag(r.status) || 'N/A')}
+      ${item('حالة التسجيل', esc(r.regStatus))}
+      ${item('الدولة (المقر)', esc(countryName(hqCountry)))}
+      ${item('المدينة (المقر)', esc(hqCity))}
+      ${item('عنوان المقر', esc(r.hqAddress))}
+      ${item('العنوان القانوني', esc(legal))}
+      ${item('الولاية القضائية', esc(r.jurisdiction))}
+      ${item('رقم السجل الوطني', esc(r.registeredAs))}
+      ${item('تاريخ التأسيس', esc(dateOnly(r.created)))}
+      ${item('نوع الكيان', esc(r.category))}
+      ${item('LEI', esc(r.lei))}
+      ${item('آخر تحديث للسجل', esc(dateOnly(r.updated)))}
+    </div>
+    <div class="src">بطاقة هوية فقط من GLEIF، بدون بيانات مالية. تاريخ نشر بيانات GLEIF: <bdi>${esc(dateOnly(pub))}</bdi>.</div>
+    <div class="src"><a href="https://search.gleif.org/#/record/${encodeURIComponent(r.lei || '')}" target="_blank" rel="noopener">تحقق من المصدر على GLEIF</a>${lastGleif ? ' · <a href="#" onclick="backToGleif();return false;">رجوع للنتائج</a>' : ''}</div>
   </div>`;
 }
 </script>
