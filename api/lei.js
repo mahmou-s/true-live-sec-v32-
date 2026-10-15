@@ -85,8 +85,8 @@ export default async function handler(req, res) {
         lei: x.lei,
         name: x.name,
         status: x.status,
-        country: x.hqCountry || x.country,
-        city: x.hqCity || x.city,
+        country: x.country,
+        city: x.city,
         category: x.category
       }));
       return res.status(200).json({
