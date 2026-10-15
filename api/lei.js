@@ -13,6 +13,7 @@ function normRecord(d) {
   const e = a.entity || {};
   const reg = a.registration || {};
   const addr = e.legalAddress || {};
+  const hq = e.headquartersAddress || {};
   return {
     lei: a.lei || d?.id || null,
     name: e.legalName?.name || null,
@@ -23,6 +24,9 @@ function normRecord(d) {
     region: addr.region || null,
     address: Array.isArray(addr.addressLines) && addr.addressLines.length ? addr.addressLines.join(', ') : null,
     postal: addr.postalCode || null,
+    hqCountry: hq.country || null,
+    hqCity: hq.city || null,
+    hqAddress: Array.isArray(hq.addressLines) && hq.addressLines.length ? hq.addressLines.join(', ') : null,
     jurisdiction: e.jurisdiction || null,
     registeredAs: e.registeredAs || null,
     registeredAt: e.registeredAt?.id || null,
@@ -81,8 +85,9 @@ export default async function handler(req, res) {
         lei: x.lei,
         name: x.name,
         status: x.status,
-        country: x.country,
-        city: x.city
+        country: x.hqCountry || x.country,
+        city: x.hqCity || x.city,
+        category: x.category
       }));
       return res.status(200).json({
         q,
