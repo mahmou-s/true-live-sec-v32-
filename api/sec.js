@@ -77,8 +77,7 @@ function pickFacts(facts, taxonomy, tags, forms) {
   const usdName = names.find((n) => cur(n) === 'USD' && n !== primary);
   const usd = usdName && byUnit[usdName].end === byUnit[primary].end ? { val: byUnit[usdName].val } : null;
   return { val: byUnit[primary].val, end: byUnit[primary].end, cur: cur(primary), usd, form: byUnit[primary].form };
-}
-
+  }
 // لو رقم اقدم من احدث رقم بأكتر من 400 يوم نخفيه بدل ما نعرض رقم قديم مضلل
 function dropStale(out) {
   const ends = Object.values(out).filter(Boolean).map((x) => Date.parse(x.end));
@@ -125,8 +124,7 @@ function inspectFacts(facts) {
   }
   tags.sort((a, b) => (a.e < b.e ? 1 : -1));
   return { taxonomies, forms: formsCount, shown: Math.min(tags.length, 40), total: tags.length, tags: tags.slice(0, 40) };
-}
-
+      }
 export default async function handler(req, res) {
   const type = String(req.query.type || '');
   const rawCik = String(req.query.cik || '');
@@ -204,9 +202,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ standard: c.standard, form: c.form || firstForm(c.data), ...c.data });
       }
       return res.status(200).json({ standard: null, form: null, ...us });
-    }
-
-    if (type === 'submissions') {
+                       }
+        if (type === 'submissions') {
       const m = data.addresses?.mailing;
       // احدث تقرير سنوي اتقدم فعلاً (10-K / 20-F / 40-F)
       const rec = data.filings?.recent;
@@ -227,6 +224,7 @@ export default async function handler(req, res) {
         website: data.website,
         phone: data.phone,
         sicDescription: data.sicDescription,
+        stateOfIncorporation: data.stateOfIncorporation || null,
         address: m ? [m.city, m.stateOrCountry].filter(Boolean).join(', ') : null,
         lastFilingDate: data.filings?.recent?.filingDate?.[0] || null,
         lastFilingForm: data.filings?.recent?.form?.[0] || null,
