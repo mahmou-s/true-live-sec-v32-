@@ -7,6 +7,20 @@ const UA = 'TrueLiveSEC/1.0 (mahmoudsalem2080@gmail.com)';
 const TYPES = ['search', 'record'];
 const HEADERS = { Accept: 'application/vnd.api+json', 'User-Agent': UA };
 
+// مفتاح مقارنة للعنوان (مش للعرض): كل اجزاء العنوان في GLEIF بما فيها رقم المبنى والرمز البريدي والولاية
+function addrKey(a) {
+  return [
+    ...(Array.isArray(a.addressLines) ? a.addressLines : []),
+    a.addressNumber,
+    a.addressNumberWithinBuilding,
+    a.mailRouting,
+    a.city,
+    a.region,
+    a.postalCode,
+    a.country
+  ].filter(Boolean).join('|');
+}
+
 // تبسيط سجل GLEIF الى حقول بسيطة
 function normRecord(d) {
   const a = d?.attributes || {};
@@ -24,9 +38,11 @@ function normRecord(d) {
     region: addr.region || null,
     address: Array.isArray(addr.addressLines) && addr.addressLines.length ? addr.addressLines.join(', ') : null,
     postal: addr.postalCode || null,
+    legalKey: addrKey(addr) || null,
     hqCountry: hq.country || null,
     hqCity: hq.city || null,
     hqAddress: Array.isArray(hq.addressLines) && hq.addressLines.length ? hq.addressLines.join(', ') : null,
+    hqKey: addrKey(hq) || null,
     jurisdiction: e.jurisdiction || null,
     registeredAs: e.registeredAs || null,
     registeredAt: e.registeredAt?.id || null,
@@ -36,8 +52,7 @@ function normRecord(d) {
     updated: reg.lastUpdateDate || null,
     renewal: reg.nextRenewalDate || null
   };
-}
-
+        }
 // ترتيب: اسم مطابق تماما، ثم يبدأ بالكلمة، ثم باقي النتائج. والنشط اولا داخل كل مجموعة
 function rank(items, q) {
   const needle = q.trim().toLowerCase();
@@ -87,6 +102,7 @@ export default async function handler(req, res) {
         status: x.status,
         country: x.country,
         city: x.city,
+        jurisdiction: x.jurisdiction,
         category: x.category
       }));
       return res.status(200).json({
@@ -103,4 +119,4 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-}
+  }
