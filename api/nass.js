@@ -56,11 +56,15 @@ export default async function handler(req, res) {
     const base = { state, county, commodity, attribution: ATTRIBUTION };
     // NASS بيرجع 400 لما مفيش سجلات مطابقة
     if (r.status === 400) return res.status(200).json({ ...base, items: [], note: 'No matching NASS records' });
-    if (!r.ok) return res.status(502).json({ error: `NASS ${r.status}` });
+    if (!r.ok) {
+      // تشخيص مؤقت: نعرض طول المفتاح (مش المفتاح نفسه) ورد NASS علشان نعرف سبب الرفض
+      const detail = (await r.text().catch(() => '')).slice(0, 200);
+      return res.status(502).json({ error: `NASS ${r.status}`, keyLength: key.length, detail });
+    }
     const data = await r.json();
     const items = pickLatest(Array.isArray(data?.data) ? data.data : []);
     return res.status(200).json({ ...base, items });
   } catch (e) {
     return res.status(500).json({ error: 'NASS request failed' });
   }
-    }
+      }
