@@ -328,7 +328,7 @@ function stateCheck(incorp, jur){
   return jur === 'US-' + incorp;
 }
 
-function matchLevel(secName, incorp, it){
+function matchLevelold(secName, incorp, it){
   const nameOk = stripName(it.name) === stripName(secName);
   const st = stateCheck(incorp, it.jurisdiction);
   if(nameOk && st === true) return {rank: 0, tag: '<span class="tag ok">مطابقة قوية: الاسم وولاية التأسيس</span>'};
@@ -336,7 +336,23 @@ function matchLevel(secName, incorp, it){
   if(nameOk) return {rank: 1, tag: '<span class="tag bad">مطابقة محتملة: الاسم فقط</span>'};
   return {rank: 3, tag: '<span class="tag">اسم مختلف</span>'};
 }
+function altEnglish(it){
+  const n = it.name || '';
+  if(!/[^\x00-\x7F]/.test(n)) return '';
+  return (it.altNames || []).find(a => /^[\x00-\x7F]+$/.test(a)) || '';
+}
 
+function matchLevel(secName, incorp, it){
+  const target = stripName(secName);
+  const nameOk = [it.name].concat(it.altNames || []).some(n => n && stripName(n) === target);
+  const st = stateCheck(incorp, it.jurisdiction);
+  const alt = altEnglish(it);
+  const extra = alt ? ' <bdi dir="ltr"><small>(' + esc(alt) + ')</small></bdi>' : '';
+  if(nameOk && st === true) return {rank: 0, tag: '<span class="tag ok">مطابقة قوية: الاسم وولاية التأسيس</span>' + extra};
+  if(nameOk && st === false) return {rank: 2, tag: '<span class="tag weak">نفس الاسم لكن ولاية تأسيس مختلفة</span>' + extra};
+  if(nameOk) return {rank: 1, tag: '<span class="tag bad">مطابقة محتملة: الاسم فقط</span>' + extra};
+  return {rank: 3, tag: '<span class="tag">اسم مختلف</span>' + extra};
+  }
 async function matchGleifOld(){
   const box = document.getElementById('gmatch');
   const s = secCtx;
