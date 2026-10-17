@@ -47,6 +47,7 @@ function normRecord(d) {
     registeredAs: e.registeredAs || null,
     registeredAt: e.registeredAt?.id || null,
     legalForm: e.legalForm?.id || null,
+    altNames: [...new Set([...(Array.isArray(e.otherNames) ? e.otherNames : []), ...(Array.isArray(e.transliteratedOtherNames) ? e.transliteratedOtherNames : [])].map((o) => o?.name).filter(Boolean))],
     category: e.category || null,
     created: e.creationDate || null,
     updated: reg.lastUpdateDate || null,
@@ -72,7 +73,7 @@ async function getJson(url) {
   const r = await fetch(url, { headers: HEADERS });
   if (!r.ok) throw new Error(`GLEIF ${r.status}`);
   return r.json();
-}
+  }
 export default async function handler(req, res) {
   const type = String(req.query.type || '');
   if (!TYPES.includes(type)) {
@@ -121,6 +122,7 @@ export default async function handler(req, res) {
         country: x.country,
         city: x.city,
         jurisdiction: x.jurisdiction,
+        altNames: (x.altNames || []).slice(0, 6),
         category: x.category
       }));
       return res.status(200).json({
@@ -142,4 +144,4 @@ export default async function handler(req, res) {
     const m = /^GLEIF (\d+)$/.exec(e.message || '');
     return res.status(m ? Number(m[1]) : 500).json({ error: e.message });
   }
-           }
+         }
