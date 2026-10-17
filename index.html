@@ -378,7 +378,9 @@ async function matchGleif(){
   try{
     // بحثين دايما: الاسم زي ما هو في SEC، والاسم بدون اللواحق (Co/Ltd/Inc)، لان GLEIF بيكتب Company Limited مثلا
     const alt = stripName(s.name);
+        const expanded = String(s.name).toLowerCase().split(/\s+/).map(w => ({co:'company',corp:'corporation',inc:'incorporated',ltd:'limited'}[w.replace(/[.,]/g,'')] || w)).join(' ');
     const queries = [s.name];
+    if(expanded !== s.name.toLowerCase()) queries.push(expanded);
     if(alt.length >= 2 && alt !== s.name.toLowerCase()) queries.push(alt);
     const seen = new Set();
     const items = [];
