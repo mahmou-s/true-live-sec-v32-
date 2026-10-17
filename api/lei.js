@@ -52,7 +52,8 @@ function normRecord(d) {
     updated: reg.lastUpdateDate || null,
     renewal: reg.nextRenewalDate || null
   };
-        }
+}
+
 // ترتيب: اسم مطابق تماما، ثم يبدأ بالكلمة، ثم باقي النتائج. والنشط اولا داخل كل مجموعة
 function rank(items, q) {
   const needle = q.trim().toLowerCase();
@@ -67,35 +68,52 @@ function rank(items, q) {
     .map((x) => x.it);
 }
 
+async function getJson(url) {
+  const r = await fetch(url, { headers: HEADERS });
+  if (!r.ok) throw new Error(`GLEIF ${r.status}`);
+  return r.json();
+}
 export default async function handler(req, res) {
   const type = String(req.query.type || '');
   if (!TYPES.includes(type)) {
     return res.status(400).json({ error: 'Invalid type' });
   }
 
-  let url;
-  let q = '';
-  if (type === 'search') {
-    q = String(req.query.q || '').trim().slice(0, 100);
-    if (q.length < 2) return res.status(400).json({ error: 'q too short' });
-    url = `${BASE}/lei-records?filter%5Bentity.legalName%5D=${encodeURIComponent(q)}&page%5Bsize%5D=30`;
-  } else {
-    const lei = String(req.query.lei || '').trim().toUpperCase();
-    if (!/^[A-Z0-9]{20}$/.test(lei)) return res.status(400).json({ error: 'Invalid LEI' });
-    url = `${BASE}/lei-records/${lei}`;
-  }
-
   try {
-    const r = await fetch(url, { headers: HEADERS });
-    if (!r.ok) {
-      return res.status(r.status).json({ error: `GLEIF ${r.status}` });
-    }
-    const data = await r.json();
-    const publishDate = data?.meta?.goldenCopy?.publishDate || null;
-
     if (type === 'search') {
+      const q = String(req.query.q || '').trim().slice(0, 100);
+      if (q.length < 2) return res.status(400).json({ error: 'q too short' });
+      const enc = encodeURIComponent(q);
+      const legalUrl = `${BASE}/lei-records?filter%5Bentity.legalName%5D=${enc}&page%5Bsize%5D=30`;
+      const fullUrl = `${BASE}/lei-records?filter%5Bfulltext%5D=${enc}&page%5Bsize%5D=30`;
+
+      // 1) بحث بالاسم القانوني. 2) لو النتايج قليلة نضيف بحث نصي (يشمل الاسماء البديلة) وندمج من غير تكرار
+      const first = await getJson(legalUrl);
+      const publishDate = first?.meta?.goldenCopy?.publishDate || null;
+      let total = first?.meta?.pagination?.total ?? null;
+      const seen = new Set();
+      const list = [];
+      const add = (data) => {
+        for (const d of Array.isArray(data?.data) ? data.data : []) {
+          const x = normRecord(d);
+          if (x.lei && !seen.has(x.lei)) {
+            seen.add(x.lei);
+            list.push(x);
+          }
+        }
+      };
+      add(first);
+      if (list.length < 10) {
+        try {
+          const second = await getJson(fullUrl);
+          add(second);
+          if (total == null) total = second?.meta?.pagination?.total ?? null;
+        } catch (e) {
+          // البحث النصي اضافي، لو فشل نكمل بنتايج البحث الاول
+        }
+      }
+
       res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
-      const list = Array.isArray(data.data) ? data.data.map(normRecord) : [];
       const items = rank(list, q).map((x) => ({
         lei: x.lei,
         name: x.name,
@@ -107,16 +125,21 @@ export default async function handler(req, res) {
       }));
       return res.status(200).json({
         q,
-        total: data?.meta?.pagination?.total ?? null,
+        total,
         shown: items.length,
         publishDate,
         items
       });
     }
 
+    const lei = String(req.query.lei || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{20}$/.test(lei)) return res.status(400).json({ error: 'Invalid LEI' });
+    const data = await getJson(`${BASE}/lei-records/${lei}`);
+    const publishDate = data?.meta?.goldenCopy?.publishDate || null;
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
     return res.status(200).json({ publishDate, record: normRecord(data.data) });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    const m = /^GLEIF (\d+)$/.exec(e.message || '');
+    return res.status(m ? Number(m[1]) : 500).json({ error: e.message });
   }
-  }
+           }
