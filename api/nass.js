@@ -29,7 +29,8 @@ function pickLatest(rows) {
 }
 
 export default async function handler(req, res) {
-  const key = process.env.NASS_API_KEY;
+  // ننضف المفتاح من اي مسافات او رموز اتجاه مخفية (بتيجي احيانا لما المفتاح يتنسخ من ايميل عربي)
+  const key = String(process.env.NASS_API_KEY || '').replace(/[^A-Za-z0-9-]/g, '');
   if (!key) return res.status(500).json({ error: 'NASS key not configured' });
 
   const state = String(req.query.state || '').trim().toUpperCase();
@@ -62,4 +63,4 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: 'NASS request failed' });
   }
-}
+    }
