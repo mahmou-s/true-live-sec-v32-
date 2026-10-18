@@ -64,3 +64,76 @@ body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;p
     </div>
     <div id="sugg" class="sugg" style="display:none"></div>
   </div>
+  <div class="chips" id="chips"></div>
+  <button class="alt" onclick="searchGleif()">بحث عالمي في سجل الكيانات (GLEIF)</button>
+  <div id="result"></div>
+  <div class="footer">V54 - المصادر: SEC.gov وGLEIF عبر /api</div>
+</div>
+<script>
+  const POPULAR = ['AAPL','MSFT','NVDA','TSLA','AMZN','GOOGL','META','NFLX','AMD','INTC','JPM','V','WMT','KO','DIS','BA','NKE','PFE'];
+let TICKERS = [];
+let last = [];
+let secCtx = null;
+let backTo = null;
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function api(params){
+  const r = await fetch('/api/sec?' + new URLSearchParams(params));
+  if(!r.ok){
+    let msg = 'HTTP ' + r.status;
+    try{ msg = (await r.json()).error || msg; }catch(e){}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+// تحميل قائمة كل الشركات مرة واحدة
+const ready = (async () => {
+  const d = await api({type:'tickers'});
+  TICKERS = Object.values(d).map(x => ({ticker:x.ticker, title:x.title, cik:String(x.cik_str)}));
+  document.getElementById('count').textContent = TICKERS.length.toLocaleString('en-US') + ' شركة';
+})();
+ready.catch(e => { document.getElementById('count').textContent = 'خطأ تحميل'; });
+
+document.getElementById('chips').innerHTML =
+  POPULAR.map(t => `<div class="chip" onclick="setQ('${t}')">${t}</div>`).join('');
+
+function matches(q){
+  q = q.trim().toLowerCase();
+  if(!q) return [];
+  const exact = [], starts = [], inc = [];
+  for(const c of TICKERS){
+    const t = c.ticker.toLowerCase(), n = c.title.toLowerCase();
+    if(t === q) exact.push(c);
+    else if(t.startsWith(q) || n.startsWith(q)) starts.push(c);
+    else if(n.includes(q)) inc.push(c);
+  }
+  const byLen = (a, b) => a.title.length - b.title.length;
+  return [...exact, ...starts.sort(byLen), ...inc.sort(byLen)].slice(0, 8);
+}
+
+function onInput(){
+  const box = document.getElementById('sugg');
+  last = matches(document.getElementById('q').value);
+  if(!last.length){ box.style.display = 'none'; return; }
+  box.innerHTML = last.map((c,i) =>
+    `<div class="sugg-item" onclick="pick(${i})"><b>${esc(c.ticker)}</b><span>${esc(c.title)}</span></div>`
+  ).join('');
+  box.style.display = 'block';
+}
+
+function pick(i){
+  const c = last[i];
+  if(!c) return;
+  document.getElementById('q').value = c.ticker;
+  load(c);
+}
+
+function setQ(t){
+  document.getElementById('q').value = t;
+  search();
+}
+  
