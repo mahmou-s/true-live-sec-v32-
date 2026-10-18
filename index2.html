@@ -179,3 +179,74 @@ function money(v, cur){
   if(a >= 1e3) return s + pre + (a/1e3).toFixed(1) + 'K';
   return s + pre + a.toFixed(0);
   }
+function render(ticker, p, f){
+  const fmt = o => o ? `<bdi dir="ltr">${money(o.val, o.cur)} <small>(${esc(o.end)})</small>${o.usd ? `<br><small>≈ ${money(o.usd.val, 'USD')}</small>` : ''}</bdi>` : 'N/A';
+  const web = p.website ? esc(p.website) : 'N/A';
+  const form = f.form || '10-K';
+  const figs = [f.revenue, f.netIncome, f.eps, f.assets, f.cash, f.debt];
+  const none = !figs.some(Boolean);
+  const foreignCur = figs.some(x => x && x.cur && x.cur !== 'USD');
+  const newestEnd = figs.filter(Boolean).map(x => x.end).sort().pop() || null;
+  const lagDays = (p.lastAnnualDate && newestEnd) ? (Date.parse(p.lastAnnualDate) - Date.parse(newestEnd)) / 86400000 : 0;
+  const secLink = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(p.cik || '')}&type=${encodeURIComponent(form)}&dateb=&owner=include&count=40`;
+  const finBlock = none
+    ? `<div class="item" style="grid-column:1/-1"><span>ما لقيناش أرقام سنوية (10-K او 20-F) لهذا السجل في SEC.</span><br><small>أسباب محتملة: تقريرها بنموذج غير مدعوم بعد (زي 40-F)، أو سجل جديد لسه ما قدّمش تقرير سنوي، أو أرقام مسجلة بأسماء غير قياسية.</small></div>`
+    : `<div class="item"><b>Revenue</b><span>${fmt(f.revenue)}</span></div>
+      <div class="item"><b>Net Income</b><span>${fmt(f.netIncome)}</span></div>
+      <div class="item"><b>EPS</b><span><bdi dir="ltr">${f.eps ? (f.eps.cur && f.eps.cur !== 'USD' ? esc(f.eps.cur) + ' ' : '') + esc(f.eps.val) : 'N/A'} <small>${f.eps ? '(' + esc(f.eps.end) + ')' : ''}</small>${f.eps && f.eps.usd ? `<br><small>≈ $${esc(f.eps.usd.val)}</small>` : ''}</bdi></span></div>
+      <div class="item"><b>Assets</b><span>${fmt(f.assets)}</span></div>
+      <div class="item"><b>Cash</b><span>${fmt(f.cash)}</span></div>
+      <div class="item"><b>Long-term debt</b><span>${fmt(f.debt)}</span></div>`;
+  const warn = (!none && lagDays > 250)
+    ? `<div class="item warn" style="grid-column:1/-1"><small>تنبيه: آخر تقرير سنوي (<bdi>${esc(p.lastAnnualForm || '')}</bdi>) اتقدّم لـ SEC بتاريخ <bdi>${esc(p.lastAnnualDate)}</bdi>، لكن الأرقام أعلاه لسنة منتهية <bdi>${esc(newestEnd)}</bdi>. قد توجد أرقام أحدث في التقرير نفسه، تحقق من الرابط تحت.</small></div>`
+    : '';
+  const notes = [];
+  if (!none && foreignCur) notes.push('الأرقام بعملة الشركة حسب تقريرها. ما يعادلها بالدولار (≈) كما أفصحت عنه الشركة لو متوفر. الربحية لكل سهم عادي (مش لكل ADR).');
+  if (!none && f.standard === 'IFRS') notes.push('الديون غير معروضة لشركات IFRS حاليا.');
+  document.getElementById('result').innerHTML = `
+  <div class="card">
+    <h3><bdi>${esc(p.name || ticker)}</bdi> (<bdi>${esc(ticker)}</bdi>)</h3>
+    <div class="grid">
+      <div class="item"><b>الموقع</b><span>${web}</span></div>
+      <div class="item"><b>التليفون</b><span><bdi>${esc(p.phone || 'N/A')}</bdi></span></div>
+      <div class="item"><b>العنوان</b><span><bdi>${esc(p.address || 'N/A')}</bdi></span></div>
+      <div class="item"><b>التصنيف</b><span><bdi>${esc(p.sicDescription || 'N/A')}</bdi></span></div>
+      <div class="item"><b>CIK</b><span>${esc(p.cik || 'N/A')}</span></div>
+      <div class="item"><b>آخر تقديم</b><span><bdi>${esc(p.lastFilingForm || '')}</bdi> ${esc(p.lastFilingDate || 'N/A')}</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>المالية - آخر سنة <bdi>${esc(form)}</bdi>${f.standard ? ' · <bdi>' + esc(f.standard) + '</bdi>' : ''}</h3>
+    <div class="grid">${finBlock}${warn}</div>
+    ${notes.length ? `<div class="src">${notes.join(' ')}</div>` : ''}
+    <div class="src"><a href="${secLink}" target="_blank" rel="noopener">تحقق من المصدر على SEC.gov</a></div>
+  </div>
+  <button class="alt" onclick="matchGleif()">دوّر على سجل الشركة دي في GLEIF (مطابقة محتملة)</button>
+  <div id="gmatch"></div>`;
+  }
+  // ================= GLEIF: بحث عالمي وبطاقة هوية =================
+let lastGleif = null;
+
+async function leiApi(params){
+  const r = await fetch('/api/lei?' + new URLSearchParams(params));
+  if(!r.ok){
+    let msg = 'HTTP ' + r.status;
+    try{ msg = (await r.json()).error || msg; }catch(e){}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+function countryName(c){
+  if(!c) return 'N/A';
+  try{ return new Intl.DisplayNames(['ar'], {type:'region'}).of(c) || c; }catch(e){ return c; }
+}
+
+function statusTag(s){
+  if(s === 'ACTIVE') return '<span class="tag ok">نشط</span>';
+  if(s === 'INACTIVE') return '<span class="tag bad">غير نشط</span>';
+  return s ? '<span class="tag">' + esc(s) + '</span>' : '';
+}
+
+const dateOnly = s => s ? String(s).slice(0, 10) : 'N/A';
+  
