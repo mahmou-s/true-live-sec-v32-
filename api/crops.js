@@ -1,21 +1,22 @@
 // api/crops.js - ربط المحصول بقطاعات SEC (أكواد SIC) اللي ممكن تشتريه
+// focus = رموز شركات مختارة (اختيار تحليلي مني بيتراجع) بتتعرض الاول، والباقي ورا زر "عرض الكل"
 // ملاحظة: ده "اهتمام محتمل مش مؤكد" - مش قايمة مشترين فعليين، والاختيار تحليلي ويتراجع
 
-const S = (sic, name, why) => ({ sic, name, why });
+const S = (sic, name, why, focus) => (focus ? { sic, name, why, focus } : { sic, name, why });
 
 const SECTORS = {
-  grainMill: S('2040', 'Grain Mill Products', 'بتطحن وتصنّع منتجات الحبوب'),
+  grainMill: S('2040', 'Grain Mill Products', 'بتطحن وتصنّع منتجات الحبوب', ['GIS', 'INGR', 'POST']),
   oils: S('2070', 'Fats & Oils', 'بتعصر البذور الزيتية وتكرر الزيوت'),
   meat: S('2011', 'Meat Packing Plants', 'بتشتري ماشية مغذّاة بالحبوب (طلب غير مباشر)'),
   poultry: S('2015', 'Poultry Slaughtering', 'شركات الدواجن المتكاملة بتشتري أعلاف'),
-  ethanol: S('2860', 'Industrial Organic Chemicals', 'بتنتج الإيثانول من الحبوب'),
-  refining: S('2911', 'Petroleum Refining', 'بتخلط الإيثانول والديزل الحيوي (طلب غير مباشر)'),
+  ethanol: S('2860', 'Industrial Organic Chemicals', 'بتنتج الإيثانول من الحبوب', ['GPRE', 'REX', 'ALTO', 'AMTX', 'GEVO']),
+  refining: S('2911', 'Petroleum Refining', 'بتخلط الإيثانول والديزل الحيوي (طلب غير مباشر)', ['VLO', 'MPC', 'PSX', 'CVI']),
   bakery: S('2050', 'Bakery Products', 'بتشتري دقيق القمح'),
   sugar: S('2060', 'Sugar & Confectionery', 'بتصنّع السكر والحلويات'),
   beverages: S('2080', 'Beverages', 'بتشتري محليات (طلب غير مباشر)'),
   textile: S('2200', 'Textile Mill Products', 'بتشتري القطن للغزل والنسيج'),
   canned: S('2030', 'Canned, Frozen & Preserved Food', 'بتصنّع الخضار والبطاطس المجمدة'),
-  wholesale: S('5150', 'Wholesale-Farm Product Raw Materials', 'تجار جملة للمحاصيل الخام'),
+  wholesale: S('5150', 'Wholesale-Farm Product Raw Materials', 'تجار جملة للمحاصيل الخام', ['ANDE', 'CHSCP', 'SEB']),
   groceries: S('5140', 'Wholesale-Groceries', 'تجار جملة للأغذية (طلب غير مباشر)')
 };
 
