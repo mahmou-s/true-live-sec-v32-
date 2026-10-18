@@ -97,3 +97,34 @@ function sectorCard(s, list) {
   }
   return `<div class="card"><h3>${esc(s.name)} <bdi dir="ltr">(SIC ${esc(s.sic)})</bdi> ${tag}</h3><div class="why">${esc(s.why)}</div>${rows}</div>`;
     }
+function renderCompanies(sectors, lists) {
+  const all = sectors.map((s, i) => ({ s, list: lists[i] }));
+  const direct = all.filter((x) => x.s.direct).map((x) => sectorCard(x.s, x.list)).join('');
+  const ind = all.filter((x) => !x.s.direct);
+  const indirect = ind.length ? `<details class="card"><summary>قطاعات طلبها غير مباشر (${ind.length})</summary>${ind.map((x) => sectorCard(x.s, x.list)).join('')}</details>` : '';
+  return '<h1 style="font-size:18px">شركات عامة ممكن تهتم (اهتمام محتمل، مش مؤكد)</h1>' + direct + indirect;
+}
+
+async function run() {
+  const out = $('out');
+  const state = $('st').value, county = $('co').value.trim(), crop = $('cr').value;
+  if (!county) { out.innerHTML = '<div class="card err">اكتب اسم المقاطعة.</div>'; return; }
+  out.innerHTML = '<div class="card">جاري التحميل...</div>';
+  try {
+    const q = new URLSearchParams({ state, county, commodity: crop });
+    const [usda, crops] = await Promise.all([getJson('/api/nass?' + q), getJson('/api/crops?crop=' + encodeURIComponent(crop))]);
+    const lists = await Promise.all(crops.sectors.map((s) => getJson('/api/sic?sic=' + s.sic).catch(() => null)));
+    out.innerHTML = renderUsda(usda) + renderCompanies(crops.sectors, lists);
+  } catch (e) {
+    out.innerHTML = '<div class="card err">حصل خطأ: ' + esc(e.message) + '</div>';
+  }
+}
+
+$('st').innerHTML = STATES.split(',').map((x) => { const [c, n] = x.split(':'); return `<option value="${c}"${c === 'IA' ? ' selected' : ''}>${n}</option>`; }).join('');
+getJson('/api/crops').then((d) => {
+  $('cr').innerHTML = d.crops.map((c) => `<option value="${esc(c)}">${esc(CROP_AR[c] || c)}</option>`).join('');
+}).catch(() => { $('cr').innerHTML = '<option value="CORN">ذرة</option>'; });
+$('go').addEventListener('click', run);
+</script>
+</body>
+</html>
