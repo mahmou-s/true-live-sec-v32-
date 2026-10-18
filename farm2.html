@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRUE LIVE - فرص الأرض الزراعية</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
+.wrap{max-width:900px;margin:auto}
+h1{color:#00ff88;font-size:24px;margin:10px 0}
+.beta{font-size:11px;background:#f59e0b;color:#000;padding:2px 8px;border-radius:10px;margin-inline-start:8px}
+.sub{color:#94a3b8;font-size:14px;margin-bottom:16px}
+.card{background:#0f1a2e;border:1px solid #1e3a5f;border-radius:14px;padding:16px;margin-bottom:14px}
+.card h3{color:#00ff88;font-size:16px;margin-bottom:10px;border-bottom:1px solid #1e3a5f;padding-bottom:8px}
+label{display:block;color:#94a3b8;font-size:12px;margin:10px 0 4px}
+select,input{width:100%;padding:12px;border-radius:10px;border:1px solid #1e3a5f;background:#13233f;color:#fff;font-size:16px}
+button{width:100%;margin-top:14px;padding:14px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:bold;font-size:16px;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.item{background:#13233f;padding:10px;border-radius:8px;word-break:break-word}
+.item b{color:#94a3b8;font-size:11px;display:block}
+.item span{font-size:15px;font-weight:bold}
+.item small{color:#94a3b8;display:block;font-size:11px;margin-top:2px}
+.co{display:flex;justify-content:space-between;gap:8px;padding:9px 10px;background:#13233f;border-radius:8px;margin-top:6px;font-size:14px}
+.co a{color:#00ff88;direction:ltr}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;border:1px solid #334155;margin-inline-start:6px}
+.tag.ok{border-color:#00ff88;color:#00ff88}
+.tag.bad{border-color:#f59e0b;color:#fbbf24}
+.why{color:#94a3b8;font-size:12px;margin:4px 0}
+.note{color:#64748b;font-size:11px;margin-top:20px;line-height:1.7}
+.err{border-color:#ef4444}
+details{margin-top:8px}
+summary{cursor:pointer;color:#00ff88;font-size:13px;padding:6px 0}
+details.card{padding:12px 16px}
+.tag.pick{border-color:#38bdf8;color:#38bdf8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>فرص الأرض الزراعية <span class="beta">نموذج أولي</span></h1>
+  <p class="sub">اختار الولاية والمقاطعة والمحصول، وشوف أرقام USDA وأنواع الشركات العامة اللي ممكن تهتم.</p>
+  <div class="card">
+    <label>الولاية</label><select id="st"></select>
+    <label>المقاطعة (بالإنجليزي، من غير كلمة County)</label><input id="co" value="Polk" autocomplete="off">
+    <label>المحصول</label><select id="cr"></select>
+    <button id="go">اعرض</button>
+  </div>
+  <div id="out"></div>
+  <p class="note">This product uses the NASS API but is not endorsed or certified by NASS.<br>
+  أرقام المحاصيل من USDA NASS زي ما هي. أنواع الشركات وترتيبها تحليل من التطبيق مش من أي جهة حكومية، والشركات المعروضة شركات عامة مدرجة في SEC فقط، وده اهتمام محتمل مش مشترين مؤكدين. ما فيش في الصفحة دي نصيحة استثمارية.</p>
+  </div>
+  
