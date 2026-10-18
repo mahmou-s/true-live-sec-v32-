@@ -378,3 +378,42 @@ function backToGleif(){
 
 // تطبيع نص العنوان للمقارنة: حروف وارقام فقط، بدون مسافات او علامات او فرق حروف كبيرة/صغيرة
 const normAddr = s => String(s == null ? '' : s).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+// المقر = العنوان القانوني؟ المقارنة على مفتاح كامل من api/lei.js (اسطر العنوان + رقم المبنى + الولاية + الرمز البريدي + المدينة + الدولة)
+function sameAddress(r){
+  if(!r.hqAddress || !r.legalKey || !r.hqKey) return false;
+  return normAddr(r.legalKey) === normAddr(r.hqKey);
+}
+  function renderGleifCard(r, pub){
+  const legal = [r.city, r.region, countryName(r.country)].filter(Boolean).join('، ');
+  const hq = (r.hqCity || r.hqCountry) ? [r.hqCity, r.hqCountry ? countryName(r.hqCountry) : null].filter(Boolean).join('، ') : null;
+  const item = (label, val) => `<div class="item"><b>${label}</b><span><bdi>${val == null || val === '' ? 'N/A' : val}</bdi></span></div>`;
+  const merged = sameAddress(r);
+  const addrItems = merged
+    ? `${item('العنوان القانوني والمقر (نفس العنوان في GLEIF)', esc(legal))}
+      ${item('تفاصيل العنوان', esc(r.address))}`
+    : `${item('العنوان القانوني', esc(legal))}
+      ${item('تفاصيل العنوان القانوني', esc(r.address))}
+      ${item('المقر حسب GLEIF', esc(hq))}
+      ${item('عنوان المقر', esc(r.hqAddress))}`;
+  document.getElementById('result').innerHTML = `
+  <div class="card">
+    <h3><bdi>${esc(r.name || 'N/A')}</bdi> <span class="badge">GLEIF</span></h3>
+    <div class="grid">
+      ${item('الحالة', statusTag(r.status) || 'N/A')}
+      ${item('حالة التسجيل', esc(r.regStatus))}
+      ${item('الدولة (العنوان القانوني)', esc(countryName(r.country)))}
+      ${addrItems}
+      ${item('الولاية القضائية', esc(r.jurisdiction))}
+      ${item('رقم السجل الوطني', esc(r.registeredAs))}
+      ${item('تاريخ التأسيس', esc(dateOnly(r.created)))}
+      ${item('نوع الكيان', esc(r.category))}
+      ${item('LEI', esc(r.lei))}
+      ${item('آخر تحديث للسجل', esc(dateOnly(r.updated)))}
+    </div>
+    <div class="src">بطاقة هوية فقط من GLEIF، بدون بيانات مالية. ${merged ? 'GLEIF بيسجّل نفس العنوان للتسجيل القانوني وللمقر، فعرضناه مرة واحدة.' : 'العنوان القانوني هو مكان تسجيل الكيان، والمقر بيتسجّل بشكل منفصل في GLEIF وممكن يختلف عنه.'} تاريخ نشر بيانات GLEIF: <bdi>${esc(dateOnly(pub))}</bdi>.</div>
+    <div class="src"><a href="https://search.gleif.org/#/record/${encodeURIComponent(r.lei || '')}" target="_blank" rel="noopener">تحقق من المصدر على GLEIF</a>${backTo ? ' · <a href="#" onclick="backToGleif();return false;">رجوع للنتائج</a>' : ''}</div>
+  </div>`;
+}
+</script>
+</body>
+</html>
