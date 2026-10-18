@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRUE LIVE SEC V54</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
+.container{max-width:900px;margin:auto}
+.header{text-align:center;padding:22px;border:2px solid #00ff88;border-radius:16px;margin-bottom:20px;background:#0f1a2e}
+.header h1{color:#00ff88;font-size:28px}
+.badge{display:inline-block;background:#00ff88;color:#000;padding:4px 10px;border-radius:20px;font-size:11px;margin:4px;font-weight:bold}
+.search-wrap{position:relative;margin:20px 0 10px}
+.search-box{display:flex;gap:10px}
+.search-box input{flex:1;padding:14px;border-radius:10px;border:1px solid #1e3a5f;background:#13233f;color:#fff;font-size:16px}
+.search-box button{padding:14px 24px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
+.sugg{position:absolute;top:100%;right:0;left:0;margin-top:6px;background:#0f1a2e;border:1px solid #1e3a5f;border-radius:10px;z-index:10;overflow:hidden}
+.sugg-item{padding:11px 14px;border-bottom:1px solid #1e3a5f;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.sugg-item:last-child{border-bottom:none}
+.sugg-item:hover{background:#13233f}
+.sugg-item b{color:#00ff88;direction:ltr}
+.sugg-item span{color:#94a3b8;direction:ltr;text-align:left;font-size:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.chip{padding:8px 14px;background:#1e293b;border:1px solid #334155;border-radius:20px;cursor:pointer;font-size:13px}
+.chip:hover{border-color:#00ff88;color:#00ff88}
+.card{background:#0f1a2e;border:1px solid #1e3a5f;border-radius:14px;padding:18px;margin-bottom:14px}
+.card h3{color:#00ff88;margin-bottom:12px;font-size:16px;border-bottom:1px solid #1e3a5f;padding-bottom:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.item{background:#13233f;padding:10px;border-radius:8px;word-break:break-word}
+.item b{color:#94a3b8;font-size:11px;display:block}
+.item span{font-size:14px;font-weight:bold}
+.src{margin-top:12px;font-size:12px}
+.src a{color:#00ff88}
+.warn{border:1px solid #f59e0b;color:#fbbf24}
+.alt{background:transparent;border:1px solid #00ff88;color:#00ff88;padding:10px 16px;border-radius:10px;cursor:pointer;font-size:13px;margin-bottom:16px}
+.gitem{padding:12px;border:1px solid #1e3a5f;border-radius:10px;background:#13233f;margin-bottom:8px;cursor:pointer}
+.gitem:hover{border-color:#00ff88}
+.gitem .gn{font-weight:bold;font-size:14px}
+.gitem .gm{font-size:12px;color:#94a3b8;margin-top:4px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#1e293b;border:1px solid #334155;margin-inline-start:6px}
+.tag.ok{border-color:#00ff88;color:#00ff88}
+.tag.bad{border-color:#f59e0b;color:#fbbf24}
+.tag.weak{border-color:#ef4444;color:#f87171}
+.footer{text-align:center;font-size:11px;color:#64748b;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>TRUE LIVE SEC V54</h1>
+    <div>كل شركات SEC - بحث بالاسم او الرمز</div>
+    <div>
+      <span class="badge">SEC EDGAR</span>
+      <span class="badge">VERCEL API</span>
+      <span class="badge" id="count">...</span>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <input id="q" placeholder="اكتب اسم الشركة او الرمز: Tesla, AAPL, Ford..." autocomplete="off" oninput="onInput()">
+      <button onclick="search()">بحث عميق</button>
+    </div>
+    <div id="sugg" class="sugg" style="display:none"></div>
+  </div>
