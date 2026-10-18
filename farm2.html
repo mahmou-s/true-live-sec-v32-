@@ -69,3 +69,31 @@ function cell(i) {
   const label = i.unit === 'OPERATIONS' ? 'عدد المزارع' : (METRIC_AR[i.metric] || i.metric);
   return `<div class="item"><b>${esc(label)}</b><span><bdi dir="ltr">${fmt(i.value)} ${esc(i.unit)}</bdi></span><small><bdi dir="ltr">${esc(i.desc)}</bdi></small><small>${esc(i.year)} · ${esc(SOURCE_AR[i.source] || i.source)}</small></div>`;
 }
+function renderUsda(d) {
+  const items = d.items || [];
+  if (!items.length) return '<div class="card"><h3>أرقام USDA</h3><div class="item">ما لقيناش أرقام لهذا المحصول في هذه المقاطعة. جرّب كتابة اسم المقاطعة بشكل تاني أو محصول تاني.</div></div>';
+  const silage = items.filter((i) => /SILAGE/i.test(i.desc));
+  const main = items.filter((i) => !/SILAGE/i.test(i.desc));
+  const more = silage.length ? `<details><summary>أرقام العلف (silage) - ${silage.length}</summary><div class="grid">${silage.map(cell).join('')}</div></details>` : '';
+  return `<div class="card"><h3>أرقام USDA: ${esc(d.county)}، ${esc(d.state)}</h3><div class="grid">${main.map(cell).join('')}</div>${more}</div>`;
+}
+
+function rowsOf(list) {
+  return list.map((c) => `<div class="co"><span><bdi dir="ltr">${esc(c.ticker)}</bdi> · <bdi dir="ltr">${esc(c.name)}</bdi></span><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(c.cik)}" target="_blank" rel="noopener">SEC</a></div>`).join('');
+}
+
+function sectorCard(s, list) {
+  let tag = s.direct ? '<span class="tag ok">طلب مباشر</span>' : '<span class="tag bad">طلب غير مباشر</span>';
+  let rows;
+  if (!list) rows = '<div class="why">تعذّر تحميل الشركات لهذا القطاع.</div>';
+  else if (!list.companies.length) rows = '<div class="why">ما فيش شركات عامة أمريكية في هذا القطاع.</div>';
+  else {
+    const pick = s.focus ? list.companies.filter((c) => s.focus.includes(c.ticker)) : [];
+    if (pick.length) {
+      const rest = list.companies.filter((c) => !s.focus.includes(c.ticker));
+      tag += '<span class="tag pick">قائمة مختارة</span>';
+      rows = rowsOf(pick) + (rest.length ? `<details><summary>عرض كل الشركات تحت الكود (${rest.length} زيادة)</summary>${rowsOf(rest)}</details>` : '');
+    } else rows = rowsOf(list.companies);
+  }
+  return `<div class="card"><h3>${esc(s.name)} <bdi dir="ltr">(SIC ${esc(s.sic)})</bdi> ${tag}</h3><div class="why">${esc(s.why)}</div>${rows}</div>`;
+    }
