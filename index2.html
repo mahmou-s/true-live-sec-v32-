@@ -136,4 +136,46 @@ function setQ(t){
   document.getElementById('q').value = t;
   search();
 }
-  
+async function search(){
+  const box = document.getElementById('result');
+  const q = document.getElementById('q').value.trim();
+  if(!q) return;
+  try{
+    await ready;
+  }catch(e){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}</div>`;
+    return;
+  }
+  const m = matches(q);
+  if(!m.length){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">ما لقيتش شركة بالاسم ده في SEC. جرب رمز السهم (زي F او KO) او اسم تاني.</div>`;
+    return;
+  }
+  load(m[0]);
+  }
+async function load(c){
+  document.getElementById('sugg').style.display = 'none';
+  const box = document.getElementById('result');
+  box.innerHTML = `<div class="card">جاري الجلب من SEC لـ ${esc(c.title)} (${esc(c.ticker)})...</div>`;
+  try{
+    const [sub, fin] = await Promise.all([
+      api({type:'submissions', cik:c.cik}),
+      api({type:'facts', cik:c.cik})
+    ]);
+    secCtx = {name: sub.name || c.title, incorp: sub.stateOfIncorporation || null, c};
+    render(c.ticker, sub, fin);
+  }catch(e){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}<br><small>بعض الشركات (بنوك او صناديق) ما عندهاش كل الارقام في SEC، جرب شركة تانية.</small></div>`;
+  }
+}
+
+function money(v, cur){
+  const c = cur || 'USD';
+  const pre = c === 'USD' ? '$' : c + ' ';
+  const a = Math.abs(v), s = v < 0 ? '-' : '';
+  if(a >= 1e12) return s + pre + (a/1e12).toFixed(2) + 'T';
+  if(a >= 1e9) return s + pre + (a/1e9).toFixed(2) + 'B';
+  if(a >= 1e6) return s + pre + (a/1e6).toFixed(2) + 'M';
+  if(a >= 1e3) return s + pre + (a/1e3).toFixed(1) + 'K';
+  return s + pre + a.toFixed(0);
+  }
