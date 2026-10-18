@@ -49,4 +49,23 @@ details.card{padding:12px 16px}
   <p class="note">This product uses the NASS API but is not endorsed or certified by NASS.<br>
   أرقام المحاصيل من USDA NASS زي ما هي. أنواع الشركات وترتيبها تحليل من التطبيق مش من أي جهة حكومية، والشركات المعروضة شركات عامة مدرجة في SEC فقط، وده اهتمام محتمل مش مشترين مؤكدين. ما فيش في الصفحة دي نصيحة استثمارية.</p>
   </div>
-  
+  <script>
+const STATES = 'AL:Alabama,AK:Alaska,AZ:Arizona,AR:Arkansas,CA:California,CO:Colorado,CT:Connecticut,DE:Delaware,FL:Florida,GA:Georgia,HI:Hawaii,ID:Idaho,IL:Illinois,IN:Indiana,IA:Iowa,KS:Kansas,KY:Kentucky,LA:Louisiana,ME:Maine,MD:Maryland,MA:Massachusetts,MI:Michigan,MN:Minnesota,MS:Mississippi,MO:Missouri,MT:Montana,NE:Nebraska,NV:Nevada,NH:New Hampshire,NJ:New Jersey,NM:New Mexico,NY:New York,NC:North Carolina,ND:North Dakota,OH:Ohio,OK:Oklahoma,OR:Oregon,PA:Pennsylvania,RI:Rhode Island,SC:South Carolina,SD:South Dakota,TN:Tennessee,TX:Texas,UT:Utah,VT:Vermont,VA:Virginia,WA:Washington,WV:West Virginia,WI:Wisconsin,WY:Wyoming';
+const CROP_AR = {CORN:'ذرة', SOYBEANS:'فول صويا', WHEAT:'قمح', COTTON:'قطن', RICE:'أرز', SUGARBEETS:'بنجر السكر', POTATOES:'بطاطس'};
+const METRIC_AR = {'AREA HARVESTED':'المساحة المحصودة', 'AREA PLANTED':'المساحة المزروعة', 'PRODUCTION':'الإنتاج', 'YIELD':'الغلة'};
+const SOURCE_AR = {SURVEY:'استطلاع', CENSUS:'تعداد'};
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (n) => Number(n).toLocaleString('en-US');
+const $ = (id) => document.getElementById(id);
+
+async function getJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+function cell(i) {
+  const label = i.unit === 'OPERATIONS' ? 'عدد المزارع' : (METRIC_AR[i.metric] || i.metric);
+  return `<div class="item"><b>${esc(label)}</b><span><bdi dir="ltr">${fmt(i.value)} ${esc(i.unit)}</bdi></span><small><bdi dir="ltr">${esc(i.desc)}</bdi></small><small>${esc(i.year)} · ${esc(SOURCE_AR[i.source] || i.source)}</small></div>`;
+}
