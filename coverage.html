@@ -52,3 +52,48 @@ async function one(c) {
     return { c, k: KEYS.filter((x) => f[x]).length, std: f.standard || 'none', form: f.form || '' };
   } catch (e) { return { c, k: -1, err: e.message }; }
 }
+async function run() {
+  const n = Math.min(300, Math.max(10, Number($('n').value) || 100));
+  $('go').disabled = true; $('out').innerHTML = ''; $('bar').style.width = '0';
+  try {
+    $('st').textContent = 'تحميل قايمة الشركات...';
+    const d = await getJson('/api/sec?type=tickers');
+    const seen = new Set();
+    const all = Object.values(d).filter((x) => !seen.has(x.cik_str) && seen.add(x.cik_str)).map((x) => ({ ticker: x.ticker, title: x.title, cik: String(x.cik_str) }));
+    const sample = pick(all, n), res = [];
+    let i = 0;
+    const worker = async () => {
+      while (i < sample.length) {
+        const c = sample[i++];
+        res.push(await one(c));
+        $('bar').style.width = (res.length / sample.length * 100) + '%';
+        $('st').textContent = res.length + ' / ' + sample.length;
+        await sleep(250);
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    show(all.length, res);
+  } catch (e) { $('out').innerHTML = '<div class="card">خطأ: ' + esc(e.message) + '</div>'; }
+  $('go').disabled = false;
+}
+function show(total, res) {
+  const bad = res.filter((r) => r.k < 0), ok = res.filter((r) => r.k >= 0);
+  const none = ok.filter((r) => r.k === 0);
+  const part = ok.filter((r) => r.k >= 1 && r.k <= 4), full = ok.filter((r) => r.k >= 5);
+  const pct = (a) => (ok.length ? (a.length / ok.length * 100).toFixed(1) : '0') + '%';
+  const by = {};
+  ok.forEach((r) => { if (r.k > 0) { const key = r.std + ' ' + r.form; by[key] = (by[key] || 0) + 1; } });
+  const row = (a, b) => '<div class="row"><span>' + a + '</span><b><bdi dir="ltr">' + b + '</bdi></b></div>';
+  const miss = none.concat(bad).map((r) => r.c.ticker + ' | ' + r.c.title + ' | ' + r.c.cik + (r.err ? ' | ' + r.err : '')).join('\n');
+  $('out').innerHTML = '<div class="card"><h1>النتيجة</h1>'
+    + row('شركات فريدة في قايمة SEC', total) + row('حجم العينة', res.length)
+    + row('طلبات فشلت (خطأ)', bad.length) + row('بدون أي رقم', none.length + ' (' + pct(none) + ')')
+    + row('أرقام جزئية (1 إلى 4)', part.length + ' (' + pct(part) + ')')
+    + row('شبه كاملة (5 إلى 6)', full.length + ' (' + pct(full) + ')')
+    + Object.keys(by).map((k) => row(esc(k), by[k])).join('')
+    + '</div><div class="card"><b>شركات بدون أرقام او فشلت (ابعتها لـ Claude)</b><pre>' + esc(miss || 'لا يوجد') + '</pre></div>';
+}
+$('go').addEventListener('click', run);
+</script>
+</body>
+</html>
