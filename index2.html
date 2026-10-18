@@ -249,4 +249,68 @@ function statusTag(s){
 }
 
 const dateOnly = s => s ? String(s).slice(0, 10) : 'N/A';
+  async function searchGleif(){
+  const box = document.getElementById('result');
+  const q = document.getElementById('q').value.trim();
+  document.getElementById('sugg').style.display = 'none';
+  if(q.length < 2){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">اكتب اسم الشركة (حرفين على الاقل) في الخانة فوق، وبعدين دوس بحث عالمي.</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="card">جاري البحث في سجل GLEIF عن "${esc(q)}"...</div>`;
+  try{
+    const d = await leiApi({type:'search', q});
+    lastGleif = d;
+    backTo = () => renderGleifList(lastGleif);
+    renderGleifList(d);
+  }catch(e){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}</div>`;
+  }
+}
+function renderGleifList(d){
+  const items = d.items || [];
+  const rows = items.map(x => `<div class="gitem" onclick="loadLei('${esc(x.lei)}')">
+      <div class="gn"><bdi>${esc(x.name || 'N/A')}</bdi></div>
+      <div class="gm"><bdi>${esc(x.city || '')}</bdi> · ${esc(countryName(x.country))} ${statusTag(x.status)}</div>
+    </div>`).join('');
+  const more = (d.total && d.total > d.shown) ? ' (عرض ' + d.shown + ' من ' + d.total + ')' : '';
+  document.getElementById('result').innerHTML = `
+  <div class="card">
+    <h3>نتائج GLEIF${esc(more)}</h3>
+    ${rows || '<div class="item">ما لقيناش نتائج بالاسم ده. جرب الاسم القانوني الكامل بالانجليزي.</div>'}
+    <div class="src">GLEIF سجل عالمي للكيانات القانونية، بيشمل شركات وصناديق وجهات تانية، ومش كل شركة موجودة فيه. البحث بكلمات الاسم، ولو الشركة المطلوبة مش ظاهرة جرّب اسمها القانوني الكامل.</div>
+  </div>`;
+}
+
+async function loadLei(lei){
+  const box = document.getElementById('result');
+  box.innerHTML = `<div class="card">جاري جلب بطاقة الهوية من GLEIF...</div>`;
+  try{
+    const d = await leiApi({type:'record', lei});
+    renderGleifCard(d.record, d.publishDate);
+  }catch(e){
+    box.innerHTML = `<div class="card" style="border-color:#ff4444">خطأ: ${esc(e.message)}</div>`;
+  }
+  }
+      // ================= V54: مطابقة محتملة بين سجل SEC وسجل GLEIF =================
+// بيانات SEC مفيهاش LEI، فالمطابقة بالاسم وولاية التأسيس فقط، وبنعرضها كاحتمال مش كحقيقة
+const NAME_SUFFIX = new Set(['inc','incorporated','corp','corporation','co','company','ltd','limited','plc','llc','lp','sa','nv','ag','se','ab','the']);
+function stripName(s){
+  let w = String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ').filter(Boolean);
+  while(w.length > 1 && NAME_SUFFIX.has(w[w.length - 1])) w.pop();
+  if(w.length > 1 && w[0] === 'the') w.shift();
+  return w.join(' ');
+}
+
+// ولاية التأسيس في SEC (حرفين زي DE) مقابل الولاية القضائية في GLEIF (US-DE). غير الامريكي بنسيبه غير معروف
+function stateCheck(incorp, jur){
+  if(!/^[A-Z]{2}$/.test(incorp || '') || !jur || !/^US-/.test(jur)) return null;
+  return jur === 'US-' + incorp;
+}
+
+function altEnglish(it){
+  const n = it.name || '';
+  if(!/[^\x00-\x7F]/.test(n)) return '';
+  return (it.altNames || []).find(a => /^[\x00-\x7F]+$/.test(a)) || '';
+  }
   
