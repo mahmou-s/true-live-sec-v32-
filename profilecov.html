@@ -59,3 +59,49 @@ async function one(c) {
   try { return { c, p: await getJson('/api/profile?cik=' + encodeURIComponent(c.cik)) }; }
   catch (e) { return { c, err: e.message }; }
 }
+async function run() {
+  const n = Math.min(300, Math.max(10, Number($('n').value) || 100));
+  $('go').disabled = true; $('out').innerHTML = ''; $('bar').style.width = '0';
+  try {
+    $('st').textContent = 'تحميل قايمة الشركات...';
+    const d = await getJson('/api/sec?type=tickers');
+    const seen = new Set();
+    const all = Object.values(d).filter((x) => !seen.has(x.cik_str) && seen.add(x.cik_str)).map((x) => ({ ticker: x.ticker, title: x.title, cik: String(x.cik_str) }));
+    const sample = pick(all, n), res = [];
+    let i = 0;
+    const worker = async () => {
+      while (i < sample.length) {
+        res.push(await one(sample[i++]));
+        $('bar').style.width = (res.length / sample.length * 100) + '%';
+        $('st').textContent = res.length + ' / ' + sample.length;
+        await sleep(250);
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    show(all.length, res);
+  } catch (e) { $('out').innerHTML = '<div class="card">خطأ: ' + esc(e.message) + '</div>'; }
+  $('go').disabled = false;
+}
+function show(total, res) {
+  const er = res.filter((r) => r.err), okr = res.filter((r) => r.p);
+  const tg = okr.filter((r) => r.p.lastAnnual && r.p.lastAnnual.form !== '40-F');
+  const f40 = okr.filter((r) => r.p.lastAnnual && r.p.lastAnnual.form === '40-F').length;
+  const no = okr.length - tg.length - f40;
+  const row = (a, b) => '<div class="row"><span>' + a + '</span><b><bdi dir="ltr">' + b + '</bdi></b></div>';
+  const pct = (n) => n + ' (' + (tg.length ? (n / tg.length * 100).toFixed(0) : 0) + '%)';
+  const fields = FIELDS.map((f) => row(f[0], pct(tg.filter((r) => f[1](r.p)).length))).join('');
+  const k10 = tg.filter((r) => r.p.lastAnnual.form === '10-K').length;
+  const line = (r) => r.c.ticker + ' | ' + r.c.title + ' | ' + r.c.cik;
+  const webs = tg.filter((r) => r.p.website).slice(0, 15).map((r) => r.c.ticker + ' | ' + r.p.website).join('\n');
+  const noweb = tg.filter((r) => !r.p.website && !r.p.investorWebsite).slice(0, 25).map(line).join('\n');
+  $('out').innerHTML = '<div class="card"><h1>النتيجة</h1>' + row('شركات فريدة في قايمة SEC', total) + row('حجم العينة', res.length)
+    + row('خطأ في الطلب', er.length) + row('بتقدم 10-K او 20-F (المستهدفة)', tg.length + ' (10-K: ' + k10 + ')')
+    + row('بدون تقرير سنوي (صناديق/ADR/غيره)', no) + row('40-F', f40)
+    + '</div><div class="card"><h1>امتلاء الحقول (من المستهدفة)</h1>' + fields
+    + '</div><div class="card"><b>امثلة مواقع موجودة</b><pre>' + esc(webs || 'لا يوجد') + '</pre></div>'
+    + '<div class="card"><b>مستهدفة بدون اي موقع (عينة)</b><pre>' + esc(noweb || 'لا يوجد') + '</pre></div>';
+}
+$('go').addEventListener('click', run);
+</script>
+</body>
+</html>
