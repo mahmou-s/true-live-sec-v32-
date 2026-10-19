@@ -72,3 +72,43 @@ export function business(text, form) {
   }
   return null;
   }
+async function readLimited(res) {
+  const reader = res.body.getReader();
+  const dec = new TextDecoder('utf-8');
+  let out = '', bytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return { text: out, bytes, truncated: false };
+    bytes += value.length;
+    out += dec.decode(value, { stream: true });
+    if (bytes >= LIMIT) { await reader.cancel().catch(() => {}); return { text: out, bytes, truncated: true }; }
+  }
+}
+
+export default async function handler(req, res) {
+  const rawCik = String(req.query?.cik || '');
+  if (!/^\d{1,10}$/.test(rawCik)) return res.status(400).json({ error: 'Invalid CIK' });
+  const H = { 'User-Agent': UA };
+  try {
+    const s = await fetch(`https://data.sec.gov/submissions/CIK${rawCik.padStart(10, '0')}.json`, { headers: H, signal: AbortSignal.timeout(3500) });
+    if (!s.ok) return res.status(s.status).json({ error: `SEC ${s.status}` });
+    const rec = (await s.json()).filings?.recent;
+    const i = (rec?.form || []).findIndex((f) => f === '10-K' || f === '20-F');
+    if (i < 0) return res.status(200).json({ cik: rawCik, found: false, note: 'no 10-K or 20-F in recent filings' });
+    const form = rec.form[i], acc = rec.accessionNumber[i].replace(/-/g, '');
+    const url = `https://www.sec.gov/Archives/edgar/data/${Number(rawCik)}/${acc}/${rec.primaryDocument[i]}`;
+    const d = await fetch(url, { headers: H, signal: AbortSignal.timeout(5000) });
+    if (!d.ok) return res.status(502).json({ error: `Filing ${d.status}` });
+    const { text: html, bytes, truncated } = await readLimited(d);
+    const text = toText(html);
+    const sites = findWebsites(text), em = findEmails(text);
+    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
+    return res.status(200).json({
+      cik: rawCik, found: true, form, filingDate: rec.filingDate?.[i] || null, url, bytes, truncated,
+      website: sites[0] ? 'https://' + sites[0].domain : null, websiteCandidates: sites,
+      emails: em.emails, hiddenOtherEmails: em.hiddenOther, business: business(text, form)
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Filing request failed' });
+  }
+      }
