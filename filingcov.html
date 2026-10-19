@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اختبار التغطية</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
+.w{max-width:900px;margin:auto}
+h1{color:#00ff88;font-size:22px;margin:10px 0}
+.card{background:#0f1a2e;border:1px solid #1e3a5f;border-radius:14px;padding:16px;margin-bottom:14px}
+.row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #1e3a5f;font-size:14px}
+button{width:100%;padding:14px;background:#00ff88;color:#000;border:none;border-radius:10px;font-weight:bold;font-size:16px;cursor:pointer}
+button:disabled{opacity:.5}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #1e3a5f;background:#13233f;color:#fff;font-size:16px;margin:10px 0}
+pre{white-space:pre-wrap;direction:ltr;text-align:left;font-size:12px;color:#94a3b8;margin-top:8px}
+.bar{height:8px;background:#1e293b;border-radius:6px;overflow:hidden;margin:10px 0}
+.bar i{display:block;height:100%;background:#00ff88;width:0}
+</style>
+</head>
+<body>
+<div class="w">
+<h1>اختبار استخراج الموقع والإيميل والنشاط من التقارير</h1>
+<div class="card">
+<p>بياخد عينة عشوائية، ويقرا تقرير كل شركة، ويقيس كام شركة طلع لها موقع وإيميل ومقتطف نشاط. الحد الاقصى 100، وكل شركة بتاخد ثواني.</p>
+<input id="n" type="number" value="40" min="10" max="100">
+<button id="go">ابدأ الاختبار</button>
+<div class="bar"><i id="bar"></i></div>
+<div id="st"></div>
+</div>
+<div id="out"></div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function getJson(u) {
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+function pick(list, n) {
+  const a = list.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, n);
+}
+async function one(c) {
+  try { return { c, f: await getJson('/api/filing?cik=' + encodeURIComponent(c.cik)) }; }
+  catch (e) { return { c, err: e.message }; }
+}
