@@ -49,3 +49,48 @@ async function one(c) {
   try { return { c, f: await getJson('/api/filing?cik=' + encodeURIComponent(c.cik)) }; }
   catch (e) { return { c, err: e.message }; }
 }
+async function run() {
+  const n = Math.min(100, Math.max(10, Number($('n').value) || 40));
+  $('go').disabled = true; $('out').innerHTML = ''; $('bar').style.width = '0';
+  try {
+    $('st').textContent = 'تحميل قايمة الشركات...';
+    const d = await getJson('/api/sec?type=tickers');
+    const seen = new Set();
+    const all = Object.values(d).filter((x) => !seen.has(x.cik_str) && seen.add(x.cik_str)).map((x) => ({ ticker: x.ticker, title: x.title, cik: String(x.cik_str) }));
+    const sample = pick(all, n), res = [];
+    let i = 0;
+    const worker = async () => {
+      while (i < sample.length) {
+        res.push(await one(sample[i++]));
+        $('bar').style.width = (res.length / sample.length * 100) + '%';
+        $('st').textContent = res.length + ' / ' + sample.length;
+        await sleep(300);
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    show(res);
+  } catch (e) { $('out').innerHTML = '<div class="card">خطأ: ' + esc(e.message) + '</div>'; }
+  $('go').disabled = false;
+}
+function show(res) {
+  const er = res.filter((r) => r.err), nf = res.filter((r) => r.f && !r.f.found), ok = res.filter((r) => r.f && r.f.found);
+  const cnt = (fn) => { const n = ok.filter(fn).length; return n + ' (' + (ok.length ? (n / ok.length * 100).toFixed(0) : 0) + '%)'; };
+  const row = (a, b) => '<div class="row"><span>' + a + '</span><b><bdi dir="ltr">' + b + '</bdi></b></div>';
+  const types = ['procurement', 'partnership', 'investor', 'general'].map((t) => row('إيميل ' + t, cnt((r) => r.f.emails.some((e) => e.type === t)))).join('');
+  const line = (r) => r.c.ticker + ' | ' + r.c.title + ' | ' + r.c.cik;
+  const ex = ok.filter((r) => r.f.website || r.f.emails.length).slice(0, 15).map((r) => r.c.ticker + ' | ' + (r.f.website || '-') + ' | ' + r.f.emails.map((e) => e.address).join(', ')).join('\n');
+  const bz = ok.filter((r) => r.f.business).slice(0, 8).map((r) => r.c.ticker + ': ' + r.f.business.slice(0, 110)).join('\n');
+  const bad = er.map((r) => line(r) + ' | ' + r.err).concat(ok.filter((r) => !r.f.business).slice(0, 15).map((r) => line(r) + ' | بدون نشاط ' + r.f.form + (r.f.truncated ? ' مقطوع' : ''))).join('\n');
+  $('out').innerHTML = '<div class="card"><h1>النتيجة</h1>' + row('حجم العينة', res.length) + row('خطأ او تاخير', er.length)
+    + row('بدون 10-K او 20-F', nf.length) + row('تقارير اتقرت', ok.length)
+    + '</div><div class="card"><h1>من التقارير اللي اتقرت</h1>' + row('موقع الشركة', cnt((r) => r.f.website))
+    + row('اي إيميل عام', cnt((r) => r.f.emails.length)) + types + row('مقتطف نشاط', cnt((r) => r.f.business))
+    + row('تقرير مقطوع (حد الحجم)', cnt((r) => r.f.truncated))
+    + '</div><div class="card"><b>امثلة (رمز | موقع | إيميلات)</b><pre>' + esc(ex || 'لا يوجد') + '</pre></div>'
+    + '<div class="card"><b>بداية مقتطفات النشاط</b><pre>' + esc(bz || 'لا يوجد') + '</pre></div>'
+    + '<div class="card"><b>اخطاء او بدون نشاط</b><pre>' + esc(bad || 'لا يوجد') + '</pre></div>';
+}
+$('go').addEventListener('click', run);
+</script>
+</body>
+</html>
