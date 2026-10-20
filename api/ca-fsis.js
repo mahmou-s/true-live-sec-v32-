@@ -64,3 +64,21 @@ export function toRecords(rows) {
   }
   return items;
   }
+export default async function handler(req, res) {
+  try {
+    let text = null;
+    for (const f of FILES) {
+      const r = await fetch(`${BASE}/${f}`, { signal: AbortSignal.timeout(8000) });
+      if (r.ok) { text = await r.text(); break; }
+    }
+    if (!text) return res.status(502).json({ error: 'FSIS csv not found in site files' });
+    const items = toRecords(parseCsv(text.replace(/^\uFEFF/, '')));
+    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
+    return res.status(200).json({
+      meta: { count: items.length, state: 'CA', note: 'Discovered records, not verified. kind and products are derived from FSIS activity types.' },
+      items
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'FSIS data request failed' });
+  }
+}
