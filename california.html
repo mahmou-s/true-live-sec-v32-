@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شركات كاليفورنيا الزراعية</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0f1c;color:#e2e8f0;font-family:'Segoe UI',Tahoma,sans-serif;padding:15px}
+.w{max-width:900px;margin:auto}
+h1{color:#00ff88;font-size:22px;margin:10px 0}
+.sub{color:#94a3b8;font-size:13px;margin-bottom:12px;line-height:1.7}
+.warn{border:1px solid #f59e0b;color:#fbbf24;border-radius:10px;padding:10px;font-size:12px;margin-bottom:12px;line-height:1.7}
+.card{background:#0f1a2e;border:1px solid #1e3a5f;border-radius:14px;padding:14px;margin-bottom:10px}
+.card b.n{color:#00ff88;font-size:15px}
+.f{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.f input,.f select{width:100%;padding:11px;border-radius:10px;border:1px solid #1e3a5f;background:#13233f;color:#fff;font-size:15px}
+.f input{grid-column:1/-1}
+.m{color:#94a3b8;font-size:12px;margin-top:5px;line-height:1.7}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;border:1px solid #334155;margin:4px 0 0 6px}
+.tag.ok{border-color:#00ff88;color:#00ff88}
+a{color:#00ff88}
+button{width:100%;padding:12px;background:#13233f;color:#00ff88;border:1px solid #00ff88;border-radius:10px;font-weight:bold;font-size:15px;cursor:pointer;margin:6px 0 14px}
+.cnt{color:#94a3b8;font-size:13px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="w">
+<h1>شركات كاليفورنيا الزراعية <span class="tag ok">نسخة أولية</span></h1>
+<p class="sub">منشآت لحوم ودواجن وبيض في كاليفورنيا، من دليل USDA FSIS.</p>
+<div class="warn">هذه النسخة تغطي اللحوم والدواجن والبيض فقط. الفواكه والمكسرات والخضار والألبان غير مشمولة بعد. السجلات "مكتشفة" وغير موثّقة، وتصنيف النوع والمنتجات مشتق من أنواع النشاط في المصدر.</div>
+<div class="f">
+<input id="q" placeholder="ابحث بالاسم او المدينة..." autocomplete="off">
+<select id="kind"><option value="producer">منتج / معالج</option><option value="service">خدمي</option><option value="">الكل</option></select>
+<select id="prod"><option value="">كل المنتجات</option><option value="meat">لحوم</option><option value="poultry">دواجن</option><option value="egg">بيض</option><option value="rabbit">أرانب</option></select>
+<select id="county" style="grid-column:1/-1"></select>
+</div>
+<div class="cnt" id="cnt"></div>
+<div id="list"></div>
+<button id="more" style="display:none">عرض المزيد</button>
+<p class="m" id="src"></p>
+  </div>
