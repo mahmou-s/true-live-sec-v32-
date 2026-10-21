@@ -1,0 +1,33 @@
+/* TRUE LIVE - ستايل مشترك: بسيط وهادي. الالوان في :root بس */
+:root{--bg:#fff;--soft:#f6f7f9;--text:#1f2933;--muted:#5b6775;--line:#e3e7ec;--accent:#1a5fd0;--accent-bg:#eaf1fc}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans Arabic',Tahoma,sans-serif}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.page{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+.top{padding:8px 0 4px}
+.top h1{font-size:24px;font-weight:700;line-height:1.3}
+.top p{color:var(--muted);font-size:15px;margin-top:4px}
+.note{background:var(--soft);border-radius:12px;padding:12px 14px;color:var(--muted);font-size:14px;margin:14px 0 20px}
+.search{width:100%;height:48px;padding:0 16px;border:1px solid var(--line);border-radius:12px;font:inherit;background:var(--bg);color:var(--text)}
+.search:focus{border-color:var(--accent)}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 18px}
+.filters select{height:44px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;font-size:15px}
+.filters .wide{grid-column:1/-1}
+.count{color:var(--muted);font-size:14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.item{padding:18px 0;border-bottom:1px solid var(--line)}
+.item h2{font-size:17px;font-weight:600;line-height:1.4}
+.meta{color:var(--muted);font-size:14px;margin-top:2px}
+.what{margin-top:8px;font-size:15px}
+.acts{display:flex;gap:24px;margin-top:8px;font-size:15px}
+.acts a{display:inline-block;padding:6px 0}
+details{margin-top:4px}
+summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
+.more{color:var(--muted);font-size:14px;line-height:1.9}
+.btn{display:block;width:100%;height:46px;margin-top:18px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--accent);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--accent-bg)}
+.foot{color:var(--muted);font-size:12px;margin-top:24px;line-height:1.8}
+.empty{padding:28px 0;color:var(--muted)}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شركات العضوي في كاليفورنيا</title><link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main class="page">
+<header class="top">
+<h1>شركات العضوي في كاليفورنيا</h1>
+<p>منشآت معتمدة عضويا (USDA NOP) من قاعدة بيانات INTEGRITY الرسمية.</p>
+</header>
+<p class="note">بيانات التواصل معروضة كما نشرها المصدر الرسمي، ولم نتحقق منها. أغلب السجلات بدون إيميل. ما تُرسل رسائل تجارية قبل مراجعة قوانين الإرسال والخصوصية.</p>
+<input class="search" id="q" type="search" placeholder="ابحث باسم الشركة أو المنتج أو المدينة (بالإنجليزي)" aria-label="بحث" autocomplete="off">
+<div class="filters">
+<select id="kind" aria-label="النوع"><option value="">منتجون ومعالجون</option><option value="producer">مزارع ومنتجون</option><option value="handler">معالجون وتجار</option></select>
+<select id="has" aria-label="بيانات التواصل"><option value="">أي بيانات تواصل</option><option value="email">فيها إيميل</option><option value="phone">فيها تليفون</option><option value="website">فيها موقع</option></select>
+<select id="county" class="wide" aria-label="المقاطعة"></select>
+</div>
+<div class="count" id="cnt" aria-live="polite"></div>
+<div id="list"></div>
+<button class="btn" id="more" hidden>عرض المزيد</button><p class="foot" id="src"></p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ltr = (t) => '<bdi dir="ltr">' + esc(t) + '</bdi>';
+const SC = { crops: 'محاصيل', livestock: 'ثروة حيوانية', wild: 'نباتات برية', handling: 'تصنيع وتداول' };
+let ALL = [], shown = 30;
+const hay = (x) => (x.name + ' ' + x.dbas.join(' ') + ' ' + x.address.city + ' ' + Object.values(x.products).join(' ')).toLowerCase();
+function filtered() {
+  const q = $('q').value.trim().toLowerCase(), c = $('county').value, k = $('kind').value, h = $('has').value;
+  return ALL.filter((x) => (!k || x.kind === k) && (!c || x.address.county === c) && (!h || x[h]) && (!q || x._h.includes(q)));
+}
+function link(u) { return /^https?:\/\//i.test(u) ? u : 'https://' + u; }
+function card(x) {
+  const a = x.address, s = x.src;
+  const acts = (x.phone ? '<a href="tel:' + esc(x.phone.replace(/[^\d+]/g, '')) + '">اتصال ' + ltr(x.phone) + '</a>' : '')
+    + (x.email ? '<a href="mailto:' + esc(x.email.split(/[;, ]+/)[0]) + '">إيميل</a>' : '')
+    + (x.website ? '<a href="' + esc(link(x.website)) + '" target="_blank" rel="noopener">الموقع</a>' : '');
+  const pr = Object.keys(x.products).map((k) => (SC[k] || k) + ': ' + x.products[k]).join(' | ');
+  const addr = a.street ? a.street + ', ' : '';
+  return '<article class="item"><h2>' + ltr(x.name) + '</h2><div class="meta">' + ltr(a.city) + (a.county ? '، ' + ltr(a.county) : '') + '</div>'
+    + '<div class="what">' + x.scopes.map((k) => SC[k]).join('، ') + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : '')
+    + '<details><summary>تفاصيل</summary><div class="more">المنتجات: ' + ltr(pr || 'غير مذكورة')
+    + '<br>' + (a.type === 'mailing' ? 'العنوان البريدي' : 'العنوان') + ': ' + ltr(addr + a.city + ', CA ' + a.zip)
+    + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
+    + (x.certifier ? '<br>جهة الاعتماد: ' + ltr(x.certifier) : '') + '<br>المصدر: <a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.name) + '</a>، بيانات ' + ltr(s.dataDate) + '</div></details></article>';
+}
+function render() {
+  const list = filtered();
+  $('cnt').textContent = list.length + ' نتيجة';
+  $('list').innerHTML = list.slice(0, shown).map(card).join('') || '<p class="empty">ما فيش نتائج. جرّب كلمة تانية أو شيل أحد الفلاتر.</p>';
+  $('more').hidden = list.length <= shown;
+}
+async function init() {
+  try {
+    const r = await fetch('/ca-organic.json');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    ALL = d.items; ALL.forEach((x) => { x._h = hay(x); x.src = d.meta.source; });
+    const cs = {};
+    ALL.forEach((x) => { const c = x.address.county; if (c) cs[c] = (cs[c] || 0) + 1; });
+    $('county').innerHTML = '<option value="">كل المقاطعات</option>' + Object.keys(cs).sort().map((c) => '<option value="' + esc(c) + '">' + esc(c) + ' (' + cs[c] + ')</option>').join('');
+    $('src').innerHTML = 'المصدر: ' + esc(d.meta.source.name) + '، بيانات ' + ltr(d.meta.source.dataDate) + '، جُمعت ' + ltr(d.meta.source.collectedAt) + '، الترخيص: ' + esc(d.meta.source.license);
+    render();
+  } catch (e) { $('list').innerHTML = '<p class="empty">تعذّر تحميل البيانات (' + esc(e.message) + '). حدّث الصفحة وحاول تاني.</p>'; }
+}
+['q', 'kind', 'has', 'county'].forEach((id) => $(id).addEventListener('input', () => { shown = 30; render(); }));
+$('more').addEventListener('click', () => { shown += 30; render(); });
+init();
+</script>
+</body>
+</html>
