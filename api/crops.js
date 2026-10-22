@@ -1,6 +1,7 @@
 // api/crops.js - ربط المحصول بقطاعات SEC (أكواد SIC) اللي ممكن تشتريه
 // focus = رموز شركات مختارة (اختيار تحليلي مني بيتراجع) بتتعرض الاول، والباقي ورا زر "عرض الكل"
 // ملاحظة: ده "اهتمام محتمل مش مؤكد" - مش قايمة مشترين فعليين، والاختيار تحليلي ويتراجع
+// الأكواد هي أكواد EDGAR (مش SIC الأمريكي الكامل): مثلا النبيذ تحت 2080 والمعلبات تحت 2033
 
 const S = (sic, name, why, focus) => (focus ? { sic, name, why, focus } : { sic, name, why });
 
@@ -17,7 +18,12 @@ const SECTORS = {
   textile: S('2200', 'Textile Mill Products', 'بتشتري القطن للغزل والنسيج'),
   canned: S('2030', 'Canned, Frozen & Preserved Food', 'بتصنّع الخضار والبطاطس المجمدة'),
   wholesale: S('5150', 'Wholesale-Farm Product Raw Materials', 'تجار جملة للمحاصيل الخام', ['ANDE', 'CHSCP', 'SEB']),
-  groceries: S('5140', 'Wholesale-Groceries', 'تجار جملة للأغذية (طلب غير مباشر)')
+  groceries: S('5140', 'Wholesale-Groceries', 'تجار جملة للأغذية (طلب غير مباشر)'),
+  nutsConf: S('2060', 'Sugar & Confectionery Products', 'بتشتري مكسرات للتحميص والتعبئة والحلويات', ['JBSS', 'HSY']),
+  foodPrep: S('2090', 'Misc. Food Preparations', 'بتشتري مكونات للأغذية الجاهزة والوجبات الخفيفة'),
+  wine: S('2080', 'Beverages (incl. wine)', 'بتصنّع مشروبات منها النبيذ، فممكن تشتري عنب'),
+  juice: S('2080', 'Beverages (incl. juice)', 'بتصنّع مشروبات منها العصائر من الفاكهة'),
+  preserved: S('2033', 'Canned Fruits, Veg & Preserves', 'بتصنّع فواكه وخضار معلبة ومربى وعصائر')
 };
 
 const CROPS = {
@@ -27,7 +33,13 @@ const CROPS = {
   COTTON: ['textile', 'wholesale'],
   RICE: ['grainMill', 'wholesale', 'groceries'],
   SUGARBEETS: ['sugar', 'beverages'],
-  POTATOES: ['canned', 'groceries']
+  POTATOES: ['canned', 'groceries'],
+  ALMONDS: ['nutsConf', 'foodPrep', 'wholesale', 'groceries'],
+  PISTACHIOS: ['nutsConf', 'foodPrep', 'wholesale', 'groceries'],
+  WALNUTS: ['nutsConf', 'foodPrep', 'wholesale', 'groceries'],
+  GRAPES: ['wine', 'preserved', 'wholesale', 'groceries'],
+  TOMATOES: ['canned', 'preserved', 'wholesale', 'groceries'],
+  ORANGES: ['juice', 'preserved', 'groceries']
 };
 
 // القطاعات اللي طلبها غير مباشر (بتظهر في الآخر وبعلامة مختلفة)

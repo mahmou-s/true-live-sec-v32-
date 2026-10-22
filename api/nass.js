@@ -3,7 +3,8 @@
 // المفتاح من متغير البيئة NASS_API_KEY (مش داخل الكود)
 
 const BASE = 'https://quickstats.nass.usda.gov/api/api_GET/';
-const METRICS = ['AREA HARVESTED', 'AREA PLANTED', 'PRODUCTION', 'YIELD'];
+// AREA BEARING = المساحة المثمرة (اشجار المكسرات والفاكهة)
+const METRICS = ['AREA HARVESTED', 'AREA PLANTED', 'AREA BEARING', 'PRODUCTION', 'YIELD'];
 const ATTRIBUTION = 'This product uses the NASS API but is not endorsed or certified by NASS.';
 const TEXT = /^[A-Z0-9 .,'&()-]{2,60}$/;
 
