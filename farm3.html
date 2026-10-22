@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>فرص الأرض الزراعية</title><link rel="stylesheet" href="/app.css">
+<style>label{display:block;color:var(--muted);font-size:14px;margin:12px 0 4px}.f{width:100%;height:46px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--bg);color:var(--text)}.co{display:flex;justify-content:space-between;gap:8px;padding:8px 0;font-size:15px}h3{font-size:18px;margin:26px 0 4px}</style>
+</head>
+<body>
+<main class="page">
+<header class="top"><h1>فرص الأرض الزراعية</h1><p>اختار الولاية والمقاطعة والمحصول، وشوف أرقام USDA وأنواع الشركات العامة اللي ممكن تهتم. نموذج أولي.</p></header>
+<div>
+<label for="st">الولاية</label><select class="f" id="st"></select>
+<label for="co">المقاطعة (بالإنجليزي، من غير كلمة County)</label><input class="f" id="co" value="Polk" autocomplete="off">
+<label for="cr">المحصول</label><select class="f" id="cr"></select>
+<button class="btn" id="go">اعرض</button>
+</div>
+<div id="out" aria-live="polite"></div>
+<p class="foot">This product uses the NASS API but is not endorsed or certified by NASS.<br>أرقام المحاصيل من USDA NASS زي ما هي. أنواع الشركات وترتيبها تحليل من التطبيق مش من أي جهة حكومية، والشركات المعروضة شركات عامة مدرجة في SEC فقط، وده اهتمام محتمل مش مشترين مؤكدين. ما فيش في الصفحة دي نصيحة استثمارية.</p>
+</main>
+<script>
+const STATES = 'AL:Alabama,AK:Alaska,AZ:Arizona,AR:Arkansas,CA:California,CO:Colorado,CT:Connecticut,DE:Delaware,FL:Florida,GA:Georgia,HI:Hawaii,ID:Idaho,IL:Illinois,IN:Indiana,IA:Iowa,KS:Kansas,KY:Kentucky,LA:Louisiana,ME:Maine,MD:Maryland,MA:Massachusetts,MI:Michigan,MN:Minnesota,MS:Mississippi,MO:Missouri,MT:Montana,NE:Nebraska,NV:Nevada,NH:New Hampshire,NJ:New Jersey,NM:New Mexico,NY:New York,NC:North Carolina,ND:North Dakota,OH:Ohio,OK:Oklahoma,OR:Oregon,PA:Pennsylvania,RI:Rhode Island,SC:South Carolina,SD:South Dakota,TN:Tennessee,TX:Texas,UT:Utah,VT:Vermont,VA:Virginia,WA:Washington,WV:West Virginia,WI:Wisconsin,WY:Wyoming';
+const CROP_AR = {CORN:'ذرة', SOYBEANS:'فول صويا', WHEAT:'قمح', COTTON:'قطن', RICE:'أرز', SUGARBEETS:'بنجر السكر', POTATOES:'بطاطس', ALMONDS:'لوز', GRAPES:'عنب', PISTACHIOS:'فستق', WALNUTS:'جوز', TOMATOES:'طماطم', ORANGES:'برتقال'};
+const METRIC_AR = {'AREA HARVESTED':'المساحة المحصودة', 'AREA PLANTED':'المساحة المزروعة', 'AREA BEARING':'المساحة المثمرة', 'PRODUCTION':'الإنتاج', 'YIELD':'الغلة'};
+const SOURCE_AR = {SURVEY:'استطلاع', CENSUS:'تعداد'};
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ltr = (t) => '<bdi dir="ltr">' + esc(t) + '</bdi>';
+const $ = (id) => document.getElementById(id);
+async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
+function cell(i) {
+  const label = i.unit === 'OPERATIONS' ? 'عدد المزارع' : (METRIC_AR[i.metric] || i.metric);
+  return '<div class="item"><h2>' + ltr(Number(i.value).toLocaleString('en-US') + ' ' + i.unit) + '</h2><div class="meta">' + esc(label) + ' · ' + ltr(i.desc) + '</div><div class="meta">' + esc(i.year) + ' · ' + esc(SOURCE_AR[i.source] || i.source) + '</div></div>';
+}
+function renderUsda(d) {
+  const items = d.items || [], head = '<h3>أرقام USDA: ' + ltr(d.county + ', ' + d.state) + '</h3>';
+  if (!items.length) return head + '<p class="empty">ما لقيناش أرقام لهذا المحصول في هذه المقاطعة. جرّب كتابة اسم المقاطعة بشكل تاني أو محصول تاني.</p>';
+  const silage = items.filter((i) => /SILAGE/i.test(i.desc)), main = items.filter((i) => !/SILAGE/i.test(i.desc));
+  return head + main.map(cell).join('') + (silage.length ? '<details><summary>أرقام العلف (silage) - ' + silage.length + '</summary>' + silage.map(cell).join('') + '</details>' : '');
+}
+const rowsOf = (list) => list.map((c) => '<div class="co"><span>' + ltr(c.ticker + ' · ' + c.name) + '</span><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=' + encodeURIComponent(c.cik) + '" target="_blank" rel="noopener">SEC</a></div>').join('');
+function sectorCard(s, list) {
+  let rows;
+  if (!list) rows = '<p class="meta">تعذّر تحميل الشركات لهذا القطاع.</p>';
+  else if (!list.companies.length) rows = '<p class="meta">ما فيش شركات عامة أمريكية في هذا القطاع.</p>';
+  else {
+    const pick = s.focus ? list.companies.filter((c) => s.focus.includes(c.ticker)) : [], rest = list.companies.filter((c) => !pick.includes(c));
+    rows = pick.length ? rowsOf(pick) + (rest.length ? '<details><summary>عرض كل الشركات تحت الكود (' + rest.length + ' زيادة)</summary>' + rowsOf(rest) + '</details>' : '') : rowsOf(list.companies);
+  }
+  return '<section class="item"><h2>' + esc(s.name) + ' ' + ltr('(SIC ' + s.sic + ')') + '</h2><div class="meta">' + (s.direct ? 'طلب مباشر' : 'طلب غير مباشر') + (s.focus ? ' · قائمة مختارة' : '') + ' · ' + esc(s.why) + '</div>' + rows + '</section>';
+}
+function renderCompanies(sectors, lists) {
+  const all = sectors.map((s, i) => ({ s, list: lists[i] })), ind = all.filter((x) => !x.s.direct);
+  return '<h3>شركات عامة ممكن تهتم (اهتمام محتمل، مش مؤكد)</h3>' + all.filter((x) => x.s.direct).map((x) => sectorCard(x.s, x.list)).join('')
+    + (ind.length ? '<details><summary>قطاعات طلبها غير مباشر (' + ind.length + ')</summary>' + ind.map((x) => sectorCard(x.s, x.list)).join('') + '</details>' : '');
+}
+async function run() {
+  const out = $('out'), state = $('st').value, county = $('co').value.trim(), crop = $('cr').value;
+  if (!county) { out.innerHTML = '<p class="empty">اكتب اسم المقاطعة.</p>'; return; }
+  out.innerHTML = '<p class="empty">جاري التحميل...</p>';
+  try {
+    const q = new URLSearchParams({ state, county, commodity: crop });
+    const [usda, crops] = await Promise.all([getJson('/api/nass?' + q), getJson('/api/crops?crop=' + encodeURIComponent(crop))]);
+    const lists = await Promise.all(crops.sectors.map((s) => getJson('/api/sic?sic=' + s.sic).catch(() => null)));
+    out.innerHTML = renderUsda(usda) + renderCompanies(crops.sectors, lists);
+  } catch (e) { out.innerHTML = '<p class="empty">حصل خطأ: ' + esc(e.message) + '</p>'; }
+}
+$('st').innerHTML = STATES.split(',').map((x) => { const [c, n] = x.split(':'); return '<option value="' + c + '"' + (c === 'IA' ? ' selected' : '') + '>' + n + '</option>'; }).join('');
+getJson('/api/crops').then((d) => { $('cr').innerHTML = d.crops.map((c) => '<option value="' + esc(c) + '">' + esc(CROP_AR[c] || c) + '</option>').join(''); }).catch(() => { $('cr').innerHTML = '<option value="CORN">ذرة</option>'; });
+$('go').addEventListener('click', run);
+</script>
+</body>
+</html>
