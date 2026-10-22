@@ -18,6 +18,7 @@ const SECTORS = {
   textile: S('2200', 'Textile Mill Products', 'بتشتري القطن للغزل والنسيج'),
   canned: S('2030', 'Canned, Frozen & Preserved Food', 'بتصنّع الخضار والبطاطس المجمدة'),
   wholesale: S('5150', 'Wholesale-Farm Product Raw Materials', 'تجار جملة للمحاصيل الخام', ['ANDE', 'CHSCP', 'SEB']),
+  wholesaleAny: S('5150', 'Wholesale-Farm Product Raw Materials', 'تجار جملة للمحاصيل الخام'),
   groceries: S('5140', 'Wholesale-Groceries', 'تجار جملة للأغذية (طلب غير مباشر)'),
   nutsConf: S('2060', 'Sugar & Confectionery Products', 'بتشتري مكسرات للتحميص والتعبئة والحلويات', ['JBSS', 'HSY']),
   foodPrep: S('2090', 'Misc. Food Preparations', 'قطاع واسع (قهوة وتوابل وأغذية جاهزة)، بعض شركاته بس بتشتري مكسرات (طلب غير مباشر)'),
@@ -34,11 +35,11 @@ const CROPS = {
   RICE: ['grainMill', 'wholesale', 'groceries'],
   SUGARBEETS: ['sugar', 'beverages'],
   POTATOES: ['canned', 'groceries'],
-  ALMONDS: ['nutsConf', 'foodPrep', 'wholesale', 'groceries'],
-  PISTACHIOS: ['nutsConf', 'foodPrep', 'wholesale', 'groceries'],
-  WALNUTS: ['nutsConf', 'foodPrep', 'wholesale', 'groceries'],
-  GRAPES: ['wine', 'preserved', 'wholesale', 'groceries'],
-  TOMATOES: ['canned', 'preserved', 'wholesale', 'groceries'],
+  ALMONDS: ['nutsConf', 'foodPrep', 'wholesaleAny', 'groceries'],
+  PISTACHIOS: ['nutsConf', 'foodPrep', 'wholesaleAny', 'groceries'],
+  WALNUTS: ['nutsConf', 'foodPrep', 'wholesaleAny', 'groceries'],
+  GRAPES: ['wine', 'preserved', 'wholesaleAny', 'groceries'],
+  TOMATOES: ['canned', 'preserved', 'wholesaleAny', 'groceries'],
   ORANGES: ['juice', 'preserved', 'groceries']
 };
 
