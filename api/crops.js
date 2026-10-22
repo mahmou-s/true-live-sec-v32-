@@ -22,7 +22,7 @@ const SECTORS = {
   groceries: S('5140', 'Wholesale-Groceries', 'تجار جملة للأغذية (طلب غير مباشر)'),
   nutsConf: S('2060', 'Sugar & Confectionery Products', 'بتشتري مكسرات للتحميص والتعبئة والحلويات', ['JBSS', 'HSY']),
   foodPrep: S('2090', 'Misc. Food Preparations', 'قطاع واسع (قهوة وتوابل وأغذية جاهزة)، بعض شركاته بس بتشتري مكسرات (طلب غير مباشر)'),
-  wine: S('2080', 'Beverages (incl. wine)', 'بتصنّع مشروبات منها النبيذ، فممكن تشتري عنب'),
+  wine: S('2080', 'Beverages (incl. wine)', 'قائمة مختارة بشركات النبيذ المدرجة، والباقي مشروبات متنوعة (قهوة ومياه ومشروبات غازية) ملهاش علاقة غالبا بالعنب', ['STZ', 'WVVI']),
   juice: S('2080', 'Beverages (incl. juice)', 'بتصنّع مشروبات منها العصائر من الفاكهة'),
   preserved: S('2033', 'Canned Fruits, Veg & Preserves', 'بتصنّع فواكه وخضار معلبة ومربى وعصائر')
 };
