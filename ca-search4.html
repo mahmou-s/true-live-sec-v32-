@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بحث شركات الغذاء والزراعة في كاليفورنيا</title><link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main class="page">
+<header class="top">
+<h1>شركات الغذاء والزراعة في كاليفورنيا</h1>
+<p>بحث واحد في منشآت اللحوم والدواجن والبيض (USDA FSIS) والمنشآت العضوية المعتمدة (USDA NOP).</p>
+</header>
+<p class="note">لا تغطي الفواكه والمكسرات والخضار والألبان التقليدية (غير العضوية). بيانات التواصل كما نشرها المصدر ولم نتحقق منها. راجع قوانين الإرسال التجاري والخصوصية قبل أي مراسلة.</p>
+<input class="search" id="q" type="search" placeholder="ابحث بمنتج أو اسم أو مدينة (بالإنجليزي)، مثل almond أو egg" aria-label="بحث" autocomplete="off">
+<div class="filters">
+<select id="from" aria-label="المصدر"><option value="">كل المصادر</option><option value="fsis">لحوم ودواجن وبيض</option><option value="org">عضوي</option><option value="both">موجودة في المصدرين</option></select>
+<select id="has" aria-label="بيانات التواصل"><option value="">أي بيانات تواصل</option><option value="email">فيها إيميل</option><option value="phone">فيها تليفون</option><option value="website">فيها موقع</option></select>
+<select id="county" class="wide" aria-label="المقاطعة"></select>
+</div>
+<div class="count" id="cnt" aria-live="polite"></div>
+<div id="list"></div>
+<button class="btn" id="more" hidden>عرض المزيد</button><p class="foot" id="src"></p>
+</main>
+<script src="/merge.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ltr = (t) => '<bdi dir="ltr">' + esc(t) + '</bdi>';
+let ALL = [], shown = 30;
+const hit = (h, q) => q.split(/\s+/).every((w) => new RegExp('(^|[^a-z0-9])' + w.replace(/[^a-z0-9]/g, '') + '(es|s)?($|[^a-z0-9])').test(h));
+function filtered() {
+  const q = $('q').value.trim().toLowerCase(), c = $('county').value, f = $('from').value, h = $('has').value;
+  return ALL.filter((x) => (!f || (f === 'both' ? x.from.length > 1 : x.from.includes(f))) && (!c || x.county === c) && (!h || x[h]) && (!q || hit(x.hay, q)));
+}
+const link = (u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u);
+const CROPK = { almond: 'ALMONDS', pistachio: 'PISTACHIOS', walnut: 'WALNUTS', grape: 'GRAPES', tomato: 'TOMATOES', orange: 'ORANGES' };
+const cropOf = (x) => { const h = ($('q').value + ' ' + x.text).toLowerCase(), k = Object.keys(CROPK).find((w) => h.includes(w)); return k ? '&cr=' + CROPK[k] : ''; };
+function card(x) {
+  const acts = (x.phone ? '<a href="tel:' + esc(x.phone.replace(/[^\d+]/g, '')) + '">اتصال ' + ltr(x.phone) + '</a>' : '')
+    + (x.email ? '<a href="mailto:' + esc(x.email.split(/[;, ]+/)[0]) + '">إيميل</a>' : '')
+    + (x.website ? '<a href="' + esc(link(x.website)) + '" target="_blank" rel="noopener">الموقع</a>' : '');
+  const srcs = x.sources.map((s) => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.name) + '</a>، بيانات ' + ltr(s.dataDate)).join('<br>');
+  return '<article class="item"><h2>' + ltr(x.name) + '</h2><div class="meta">' + ltr(x.city) + (x.county ? '، ' + ltr(x.county) : '') + '</div>'
+    + '<div class="what">' + esc(x.tags.join('، ')) + (x.from.length > 1 ? ' · في المصدرين' : '') + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : '')
+    + '<details><summary>تفاصيل</summary><div class="more">' + (x.text ? 'المنتجات والنشاط: ' + ltr(x.text) + '<br>' : '')
+    + (x.mailing ? 'العنوان البريدي' : 'العنوان') + ': ' + ltr((x.street ? x.street + ', ' : '') + x.city + ', CA ' + x.zip)
+    + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
+    + (x.certifier ? '<br>جهة الاعتماد: ' + ltr(x.certifier) : '')
+    + (x.county ? '<br><a href="/farm5.html?st=CA&co=' + encodeURIComponent(x.county) + cropOf(x) + '">أرقام الإنتاج الزراعي في مقاطعة ' + ltr(x.county) + '</a>' : '')
+    + '<br>المصدر: ' + srcs + '</div></details></article>';
+}
+function render() {
+  const list = filtered();
+  $('cnt').textContent = list.length + ' نتيجة';
+  $('list').innerHTML = list.slice(0, shown).map(card).join('') || '<p class="empty">ما فيش نتائج. جرّب كلمة تانية أو شيل أحد الفلاتر.</p>';
+  $('more').hidden = list.length <= shown;
+}
+async function init() {
+  try {
+    const rs = await Promise.all([fetch('/ca-fsis.json'), fetch('/ca-organic.json')]);
+    rs.forEach((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); });
+    const [f, o] = await Promise.all(rs.map((r) => r.json()));
+    f.source = f.items[0] && f.items[0].source;
+    ALL = buildAll(f, o);
+    const cs = {};
+    ALL.forEach((x) => { if (x.county) cs[x.county] = (cs[x.county] || 0) + 1; });
+    $('county').innerHTML = '<option value="">كل المقاطعات</option>' + Object.keys(cs).sort().map((c) => '<option value="' + esc(c) + '">' + esc(c) + ' (' + cs[c] + ')</option>').join('');
+    $('src').textContent = 'الترخيص: بيانات FSIS CC0، وبيانات INTEGRITY ملكية عامة. الدمج بين المصدرين تلقائي بالاسم والرمز البريدي وقد يحتوي أخطاء.';
+    render();
+  } catch (e) { $('list').innerHTML = '<p class="empty">تعذّر تحميل البيانات (' + esc(e.message) + '). حدّث الصفحة وحاول تاني.</p>'; }
+}
+['q', 'from', 'has', 'county'].forEach((id) => $(id).addEventListener('input', () => { shown = 30; render(); }));
+$('more').addEventListener('click', () => { shown += 30; render(); });
+init();
+</script>
+</body>
+</html>
