@@ -13,20 +13,29 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-// لكل وصف (short_desc) نحتفظ باحدث سنة، وعند التساوي نفضل الاستطلاع (SURVEY) على التعداد (CENSUS)
-function pickLatest(rows) {
-  const best = {};
+// لكل وصف (short_desc) نحتفظ باحدث رقم متاح، وعند التساوي نفضل الاستطلاع (SURVEY) على التعداد (CENSUS)
+// لو اللي اتنشر لاحدث سنة محجوب او غير متاح، بنرجّع الرقم الاقدم مع hiddenYear علشان الصفحة تنبّه
+// ولو كل الارقام محجوبة بنرجّع سطر hidden:true بدل ما نخفي المقياس
+export function pickLatest(rows) {
+  const best = {}, latest = {};
   for (const r of rows) {
     if (r.domain_desc !== 'TOTAL' || !METRICS.includes(r.statisticcat_desc)) continue;
-    const value = num(r.Value);
-    if (value === null) continue; // (D) و (Z) معناها بيانات محجوبة
     const year = Number(r.year);
+    const l = latest[r.short_desc];
+    if (!l || year > l.year) latest[r.short_desc] = { metric: r.statisticcat_desc, unit: r.unit_desc, year, source: r.source_desc };
+    const value = num(r.Value);
+    if (value === null) continue; // (D) و (Z) و (NA) معناها بيانات محجوبة او غير متاحة
     const cur = best[r.short_desc];
     if (!cur || year > cur.year || (year === cur.year && r.source_desc === 'SURVEY' && cur.source !== 'SURVEY')) {
       best[r.short_desc] = { metric: r.statisticcat_desc, desc: r.short_desc, value, unit: r.unit_desc, year, source: r.source_desc };
     }
   }
-  return Object.values(best).sort((a, b) => b.year - a.year).slice(0, 8);
+  const out = Object.keys(latest).map((desc) => {
+    const b = best[desc], l = latest[desc];
+    if (!b) return { metric: l.metric, desc, value: null, unit: l.unit, year: l.year, source: l.source, hidden: true };
+    return l.year > b.year ? { ...b, hiddenYear: l.year } : b;
+  });
+  return out.sort((a, b) => b.year - a.year || (a.hidden ? 1 : 0) - (b.hidden ? 1 : 0)).slice(0, 8);
 }
 
 export default async function handler(req, res) {
