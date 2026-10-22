@@ -20,7 +20,7 @@ const SECTORS = {
   wholesale: S('5150', 'Wholesale-Farm Product Raw Materials', 'تجار جملة للمحاصيل الخام', ['ANDE', 'CHSCP', 'SEB']),
   groceries: S('5140', 'Wholesale-Groceries', 'تجار جملة للأغذية (طلب غير مباشر)'),
   nutsConf: S('2060', 'Sugar & Confectionery Products', 'بتشتري مكسرات للتحميص والتعبئة والحلويات', ['JBSS', 'HSY']),
-  foodPrep: S('2090', 'Misc. Food Preparations', 'بتشتري مكونات للأغذية الجاهزة والوجبات الخفيفة'),
+  foodPrep: S('2090', 'Misc. Food Preparations', 'قطاع واسع (قهوة وتوابل وأغذية جاهزة)، بعض شركاته بس بتشتري مكسرات (طلب غير مباشر)'),
   wine: S('2080', 'Beverages (incl. wine)', 'بتصنّع مشروبات منها النبيذ، فممكن تشتري عنب'),
   juice: S('2080', 'Beverages (incl. juice)', 'بتصنّع مشروبات منها العصائر من الفاكهة'),
   preserved: S('2033', 'Canned Fruits, Veg & Preserves', 'بتصنّع فواكه وخضار معلبة ومربى وعصائر')
@@ -43,7 +43,7 @@ const CROPS = {
 };
 
 // القطاعات اللي طلبها غير مباشر (بتظهر في الآخر وبعلامة مختلفة)
-const INDIRECT = new Set(['meat', 'refining', 'beverages', 'groceries']);
+const INDIRECT = new Set(['meat', 'refining', 'beverages', 'groceries', 'foodPrep']);
 
 export function sectorsFor(crop) {
   const keys = CROPS[String(crop || '').toUpperCase()];
