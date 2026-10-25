@@ -1,4 +1,15 @@
 {
-  "note": "Manual contact data for GAP records. Each entry needs source.url (company page) and source.checkedDate. Copy phone/email/website exactly as published there.",
-  "items": []
+  "note": "Manual contact data for GAP records. Each entry needs source.url (a page where the company published it) and source.checkedDate. Copy phone/email/website exactly as published there.",
+  "items": [
+    {
+      "name": "Agriculture and Land-Based Training Association Farm Group",
+      "city": "Salinas",
+      "phone": "(831) 758-1469",
+      "website": "www.albafarmers.org",
+      "source": {
+        "url": "https://www.organicproducenetwork.com/organic-growers/in-their-words-patricia-carrillo-executive-director-at-agriculture-land-based-training-association-alba",
+        "checkedDate": "2026-10-25"
+      }
+    }
+  ]
 }
