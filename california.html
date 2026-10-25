@@ -35,10 +35,25 @@ const tok = (w) => AR[w] || AR[w.replace(/^و/, '')] || w;
 const hit = (h, q) => q.split(/\s+/).map(tok).every((w) => { const t = w.replace(/[^a-z0-9]/gi, '').toLowerCase(); return t && new RegExp('(^|[^a-z0-9])' + t + '(es|s)?($|[^a-z0-9])').test(h); });
 function filtered() {
   const q = $('q').value.trim().toLowerCase(), p = $('crop').value, c = $('county').value, f = $('from').value, h = $('has').value, k = $('kind').value;
-  return ALL.filter((x) => (!f || (f === 'both' ? x.from.length > 1 : x.from.includes(f))) && (!c || x.county === c) && (!k || (k === 'main' ? x.kind !== 'service' : x.kind === 'service')) && (!h || x[h]) && (!p || hit(x.hay, p)) && (!q || hit(x.hay, q)));
+  return ALL.filter((x) => (!f || (f === 'both' ? (x.from.includes('fsis') && x.from.includes('org')) : x.from.includes(f))) && (!c || x.county === c) && (!k || (k === 'main' ? x.kind !== 'service' : x.kind === 'service')) && (!h || x[h]) && (!p || hit(x.hay, p)) && (!q || hit(x.hay, q)));
 }
 const place = (x) => { const c = (x.county || '').toLowerCase(), t = (x.city || '').toLowerCase(); return (c && t.indexOf(c) === 0 && /county$/.test(t)) ? ltr(x.city) : ltr(x.city.replace(/\//g, ' / ')) + (x.county ? '، ' + ltr(x.county) : ''); };
-const cropsOf = (x) => { const t = (x.text || '').split(' | ')[0]; return t.length > 140 ? t.slice(0, 137) + '...' : t; };
+const cropsOf = (x) => { const t = x.crops || (x.text || '').split(' | ')[0]; return t.length > 140 ? t.slice(0, 137) + '...' : t; };
+const nkey = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\b(llc|inc|co|corp|corporation|company|ltd|lp|the|farms?|ranch|orchards?|and)\b/g, ' ').replace(/\s+/g, ' ').trim();
+const ckey = (c) => String(c || '').toLowerCase().split('/')[0].replace(/[^a-z]/g, '');
+function mergeGap(items) {
+  const idx = new Map();
+  ALL.forEach((x) => { if (!x.from || !x.from.includes('org')) return; [x.name].concat(x.names || []).forEach((n) => { const k = nkey(n) + '|' + ckey(x.city); if (nkey(n) && !idx.has(k)) idx.set(k, x); }); });
+  const rest = [];
+  items.forEach((g) => {
+    const m = [g.name].concat(g.names || []).map((n) => idx.get(nkey(n) + '|' + ckey(g.city))).find(Boolean);
+    if (!m) { rest.push(g); return; }
+    if (!m.from.includes('gap')) m.from.push('gap');
+    (g.tags || []).forEach((t) => { if (!m.tags.includes(t)) m.tags.push(t); });
+    m.crops = g.crops; m.sources.push(g.sources[0]); m.hay += ' ' + g.hay;
+  });
+  return rest;
+}
 const link = (u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u);
 const CROPK = { almond: 'ALMONDS', pistachio: 'PISTACHIOS', walnut: 'WALNUTS', grape: 'GRAPES', tomato: 'TOMATOES', orange: 'ORANGES' };
 const cropOf = (x) => { const h = ($('q').value + ' ' + x.text).toLowerCase(), k = Object.keys(CROPK).find((w) => h.includes(w)); return k ? '&cr=' + CROPK[k] : ''; };
@@ -48,7 +63,7 @@ function card(x) {
     + (x.website ? '<a href="' + esc(link(x.website)) + '" target="_blank" rel="noopener">الموقع</a>' : '');
   const srcs = x.sources.map((s) => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.name) + '</a>، بيانات ' + ltr(s.dataDate)).join('<br>');
   return '<article class="item"><h2>' + ltr(x.name) + '</h2><div class="meta" style="overflow-wrap:anywhere">' + place(x) + '</div>'
-    + '<div class="what">' + esc(x.tags.join('، ')) + (x.from.length > 1 ? ' · في المصدرين' : '') + '</div>' + (x.from.includes('gap') ? '<div class="what">المحاصيل: ' + ltr(cropsOf(x)) + '</div>' : '') + (acts ? '<div class="acts">' + acts + '</div>' : '')
+    + '<div class="what">' + esc(x.tags.join('، ')) + (x.from.length > 1 ? ' · في أكثر من مصدر' : '') + '</div>' + (x.from.includes('gap') ? '<div class="what">المحاصيل: ' + ltr(cropsOf(x)) + '</div>' : '') + (acts ? '<div class="acts">' + acts + '</div>' : '')
     + '<details><summary>تفاصيل</summary><div class="more">' + (x.text ? 'المنتجات والنشاط: ' + ltr(x.text) + '<br>' : '')
     + (x.mailing ? 'العنوان البريدي' : 'العنوان') + ': ' + ltr([x.street, x.city, ('CA ' + (x.zip || '')).trim()].filter(Boolean).join(', '))
     + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
@@ -74,7 +89,8 @@ async function init() {
       for (const x of m.sources) {
         try {
           const d = await (await fetch(x.file)).json();
-          d.items.forEach((r) => { r.hay = (r.name + ' ' + r.names.join(' ') + ' ' + r.city + ' ' + r.text).toLowerCase(); ALL.push(r); });
+          d.items.forEach((r) => { r.hay = (r.name + ' ' + r.names.join(' ') + ' ' + r.city + ' ' + r.text).toLowerCase(); });
+          if (x.key === 'gap') { try { ALL.push(...mergeGap(d.items)); } catch (e) { ALL.push(...d.items); } } else { ALL.push(...d.items); }
           $('from').insertAdjacentHTML('beforeend', '<option value="' + esc(x.key) + '">' + esc(x.label) + '</option>');
         } catch (e) { /* مصدر إضافي فشل: نكمل من غيره */ }
       }
@@ -93,4 +109,4 @@ init();
 </script>
 <script src="/nav.js"></script>
 </body>
-</html>
+                                                                                        </html>
