@@ -54,6 +54,20 @@ function mergeGap(items) {
   });
   return rest;
 }
+const skey = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+function applyContacts(list) {
+  const idx = new Map();
+  ALL.forEach((x) => { if (!x.from || !x.from.includes('gap')) return; [x.name].concat(x.names || []).forEach((n) => { const k = skey(n) + '|' + ckey(x.city); if (skey(n) && !idx.has(k)) idx.set(k, x); }); });
+  (list || []).forEach((c) => {
+    const s = c && c.source;
+    if (!s || !/^https?:\/\//i.test(s.url || '') || !s.checkedDate) return;
+    const x = idx.get(skey(c.name) + '|' + ckey(c.city));
+    if (!x) return;
+    let added = false;
+    ['phone', 'email', 'website'].forEach((f) => { if (c[f] && !x[f]) { x[f] = String(c[f]).trim(); added = true; } });
+    if (added) { x.contactSrc = { url: s.url, checkedDate: s.checkedDate }; }
+  });
+}
 const link = (u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u);
 const CROPK = { almond: 'ALMONDS', pistachio: 'PISTACHIOS', walnut: 'WALNUTS', grape: 'GRAPES', tomato: 'TOMATOES', orange: 'ORANGES' };
 const cropOf = (x) => { const h = ($('q').value + ' ' + x.text).toLowerCase(), k = Object.keys(CROPK).find((w) => h.includes(w)); return k ? '&cr=' + CROPK[k] : ''; };
@@ -70,6 +84,7 @@ function card(x) {
     + (x.mailing ? 'العنوان البريدي' : 'العنوان') + ': ' + ltr([x.street, x.city, ('CA ' + (x.zip || '')).trim()].filter(Boolean).join(', '))
     + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
     + (x.certifier ? '<br>جهة الاعتماد: ' + ltr(x.certifier) : '')
+    + (x.contactSrc ? '<br>بيانات التواصل من موقع الشركة: <a href="' + esc(x.contactSrc.url) + '" target="_blank" rel="noopener">الصفحة المصدر</a>، تاريخ التأكد ' + ltr(x.contactSrc.checkedDate) : '')
     + (x.county ? '<br><a href="/farm.html?st=CA&co=' + encodeURIComponent(x.county) + cropOf(x) + '">أرقام الإنتاج الزراعي في مقاطعة ' + ltr(x.county) + '</a>' : '')
     + (!x.website && x.from.includes('gap') ? '<br>رابط "ابحث عن الشركة" مجرد بحث على الإنترنت بالاسم والمدينة، مش بيانات من المصدر ولم نتحقق من النتائج.' : '')
     + '<br>المصدر: ' + srcs + '</div></details></article>';
@@ -97,6 +112,7 @@ async function init() {
           $('from').insertAdjacentHTML('beforeend', '<option value="' + esc(x.key) + '">' + esc(x.label) + '</option>');
         } catch (e) { /* مصدر إضافي فشل: نكمل من غيره */ }
       }
+      try { const cr = await fetch('/ca-gap-contacts.json'); if (cr.ok) applyContacts((await cr.json()).items); } catch (e) { /* مفيش ملف تواصل: نكمل من غيره */ }
       ALL.sort((a, b) => a.name.localeCompare(b.name));
     } catch (e) { /* مفيش مصادر إضافية */ }
     const cs = {};
