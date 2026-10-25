@@ -32,7 +32,7 @@ const ltr = (t) => '<bdi dir="ltr">' + esc(t) + '</bdi>';
 let ALL = [], shown = 30;
 const AR = { 'لوز': 'almond', 'عنب': 'grape', 'بيض': 'egg', 'لحم': 'meat', 'لحوم': 'meat', 'دواجن': 'poultry', 'فراخ': 'poultry', 'طماطم': 'tomato', 'فستق': 'pistachio', 'جوز': 'walnut', 'برتقال': 'orange', 'حليب': 'milk', 'لبن': 'milk', 'ألبان': 'dairy', 'عسل': 'honey', 'ذرة': 'corn', 'قمح': 'wheat', 'أرز': 'rice', 'تفاح': 'apple', 'فراولة': 'strawberry', 'أفوكادو': 'avocado', 'ليمون': 'lemon', 'زيتون': 'olive', 'تمر': 'date', 'جبن': 'cheese', 'جبنة': 'cheese', 'زبادي': 'yogurt', 'كريمة': 'cream', 'قشدة': 'cream' };
 const tok = (w) => AR[w] || AR[w.replace(/^و/, '')] || w;
-const hit = (h, q) => q.split(/\s+/).map(tok).every((w) => { const t = w.replace(/[^a-z0-9]/gi, '').toLowerCase(); return t && new RegExp('(^|[^a-z0-9])' + t + '(es|s)?($|[^a-z0-9])').test(h); });
+const hit = (h, q) => q.split(/[\s\-]+/).filter(Boolean).map(tok).every((w) => { const t = w.replace(/[^a-z0-9]/gi, '').toLowerCase(); return t && new RegExp('(^|[^a-z0-9])' + t + '(es|s)?($|[^a-z0-9])').test(h); });
 function filtered() {
   const q = $('q').value.trim().toLowerCase(), p = $('crop').value, c = $('county').value, f = $('from').value, h = $('has').value, k = $('kind').value;
   return ALL.filter((x) => (!f || (f === 'both' ? (x.from.includes('fsis') && x.from.includes('org')) : x.from.includes(f))) && (!c || x.county === c) && (!k || (k === 'main' ? x.kind !== 'service' : x.kind === 'service')) && (!h || x[h]) && (!p || hit(x.hay, p)) && (!q || hit(x.hay, q)));
