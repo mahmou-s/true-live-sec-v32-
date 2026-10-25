@@ -68,6 +68,14 @@ function applyContacts(list) {
     if (added) { x.contactSrc = { url: s.url, checkedDate: s.checkedDate }; }
   });
 }
+function applyCounty(map) {
+  if (!map) return;
+  ALL.forEach((x) => {
+    if (!x.from || !x.from.includes('gap') || x.county) return;
+    const c = map[skey(x.city)];
+    if (c) { x.county = c; x.countyNote = true; }
+  });
+}
 const link = (u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u);
 const CROPK = { almond: 'ALMONDS', pistachio: 'PISTACHIOS', walnut: 'WALNUTS', grape: 'GRAPES', tomato: 'TOMATOES', orange: 'ORANGES' };
 const cropOf = (x) => { const h = ($('q').value + ' ' + x.text).toLowerCase(), k = Object.keys(CROPK).find((w) => h.includes(w)); return k ? '&cr=' + CROPK[k] : ''; };
@@ -85,6 +93,7 @@ function card(x) {
     + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
     + (x.certifier ? '<br>جهة الاعتماد: ' + ltr(x.certifier) : '')
     + (x.contactSrc ? '<br>بيانات التواصل من موقع الشركة: <a href="' + esc(x.contactSrc.url) + '" target="_blank" rel="noopener">الصفحة المصدر</a>، تاريخ التأكد ' + ltr(x.contactSrc.checkedDate) : '')
+    + (x.countyNote ? '<br>المقاطعة: ' + ltr(x.county) + ' (حسب المدينة المكتوبة في عنوان GAP، من جدول Census 2020 للأماكن والمقاطعات، مش حسب إحداثيات العنوان)' : '')
     + (x.county ? '<br><a href="/farm.html?st=CA&co=' + encodeURIComponent(x.county) + cropOf(x) + '">أرقام الإنتاج الزراعي في مقاطعة ' + ltr(x.county) + '</a>' : '')
     + (!x.website && x.from.includes('gap') ? '<br>رابط "ابحث عن الشركة" مجرد بحث على الإنترنت بالاسم والمدينة، مش بيانات من المصدر ولم نتحقق من النتائج.' : '')
     + '<br>المصدر: ' + srcs + '</div></details></article>';
@@ -113,6 +122,7 @@ async function init() {
         } catch (e) { /* مصدر إضافي فشل: نكمل من غيره */ }
       }
       try { const cr = await fetch('/ca-gap-contacts.json'); if (cr.ok) applyContacts((await cr.json()).items); } catch (e) { /* مفيش ملف تواصل: نكمل من غيره */ }
+      try { const kr = await fetch('/ca-gap-county.json'); if (kr.ok) applyCounty((await kr.json()).map); } catch (e) { /* مفيش ملف مقاطعات: نكمل من غيره */ }
       ALL.sort((a, b) => a.name.localeCompare(b.name));
     } catch (e) { /* مفيش مصادر إضافية */ }
     const cs = {};
@@ -128,4 +138,4 @@ init();
 </script>
 <script src="/nav.js"></script>
 </body>
-</html>
+  </html>
