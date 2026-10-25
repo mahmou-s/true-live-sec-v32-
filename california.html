@@ -57,10 +57,12 @@ function mergeGap(items) {
 const link = (u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u);
 const CROPK = { almond: 'ALMONDS', pistachio: 'PISTACHIOS', walnut: 'WALNUTS', grape: 'GRAPES', tomato: 'TOMATOES', orange: 'ORANGES' };
 const cropOf = (x) => { const h = ($('q').value + ' ' + x.text).toLowerCase(), k = Object.keys(CROPK).find((w) => h.includes(w)); return k ? '&cr=' + CROPK[k] : ''; };
+const webSearch = (x) => 'https://www.google.com/search?q=' + encodeURIComponent([x.name, String(x.city || '').split('/')[0].trim(), 'California'].filter(Boolean).join(' '));
 function card(x) {
   const acts = (x.phone ? '<a href="tel:' + esc(x.phone.replace(/[^\d+]/g, '')) + '">اتصال ' + ltr(x.phone) + '</a>' : '')
     + (x.email ? '<a href="mailto:' + esc(x.email.split(/[;, ]+/)[0]) + '">إيميل</a>' : '')
-    + (x.website ? '<a href="' + esc(link(x.website)) + '" target="_blank" rel="noopener">الموقع</a>' : '');
+    + (x.website ? '<a href="' + esc(link(x.website)) + '" target="_blank" rel="noopener">الموقع</a>' : '')
+    + (!x.website && x.from.includes('gap') ? '<a href="' + esc(webSearch(x)) + '" target="_blank" rel="noopener">ابحث عن الشركة</a>' : '');
   const srcs = x.sources.map((s) => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.name) + '</a>، بيانات ' + ltr(s.dataDate)).join('<br>');
   return '<article class="item"><h2>' + ltr(x.name) + '</h2><div class="meta" style="overflow-wrap:anywhere">' + place(x) + '</div>'
     + '<div class="what">' + esc(x.tags.join('، ')) + (x.from.length > 1 ? ' · في أكثر من مصدر' : '') + '</div>' + (x.from.includes('gap') ? '<div class="what">المحاصيل: ' + ltr(cropsOf(x)) + '</div>' : '') + (acts ? '<div class="acts">' + acts + '</div>' : '')
@@ -69,6 +71,7 @@ function card(x) {
     + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
     + (x.certifier ? '<br>جهة الاعتماد: ' + ltr(x.certifier) : '')
     + (x.county ? '<br><a href="/farm.html?st=CA&co=' + encodeURIComponent(x.county) + cropOf(x) + '">أرقام الإنتاج الزراعي في مقاطعة ' + ltr(x.county) + '</a>' : '')
+    + (!x.website && x.from.includes('gap') ? '<br>رابط "ابحث عن الشركة" مجرد بحث على الإنترنت بالاسم والمدينة، مش بيانات من المصدر ولم نتحقق من النتائج.' : '')
     + '<br>المصدر: ' + srcs + '</div></details></article>';
 }
 function render() {
@@ -109,4 +112,4 @@ init();
 </script>
 <script src="/nav.js"></script>
 </body>
-                                                                                        </html>
+</html>
