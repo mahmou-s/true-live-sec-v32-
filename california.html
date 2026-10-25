@@ -19,6 +19,7 @@
 <select id="kind" class="wide" aria-label="نوع المنشأة"><option value="main">منتجون ومعالجون ومصنّعون</option><option value="service">خدمات (تخزين واستيراد ولوجستيات)</option><option value="">كل المنشآت</option></select>
 <select id="crop" class="wide" aria-label="المحصول"><option value="">كل المحاصيل والمنتجات</option><option value="almond">لوز</option><option value="pistachio">فستق</option><option value="walnut">جوز</option><option value="grape">عنب</option><option value="orange">برتقال</option><option value="lemon">ليمون</option><option value="mandarin">مندرين</option><option value="tomato">طماطم</option><option value="strawberries">فراولة</option><option value="onion">بصل</option><option value="peach">خوخ</option><option value="pomegranate">رمان</option></select>
 <select id="county" class="wide" aria-label="المقاطعة"></select>
+<select id="city" class="wide" aria-label="المدينة"></select>
 </div>
 <div class="count" id="cnt" aria-live="polite"></div>
 <div id="list"></div>
@@ -33,9 +34,20 @@ let ALL = [], shown = 30;
 const AR = { 'لوز': 'almond', 'عنب': 'grape', 'بيض': 'egg', 'لحم': 'meat', 'لحوم': 'meat', 'دواجن': 'poultry', 'فراخ': 'poultry', 'طماطم': 'tomato', 'فستق': 'pistachio', 'جوز': 'walnut', 'برتقال': 'orange', 'حليب': 'milk', 'لبن': 'milk', 'ألبان': 'dairy', 'عسل': 'honey', 'ذرة': 'corn', 'قمح': 'wheat', 'أرز': 'rice', 'تفاح': 'apple', 'فراولة': 'strawberry', 'أفوكادو': 'avocado', 'ليمون': 'lemon', 'زيتون': 'olive', 'تمر': 'date', 'جبن': 'cheese', 'جبنة': 'cheese', 'زبادي': 'yogurt', 'كريمة': 'cream', 'قشدة': 'cream' };
 const tok = (w) => AR[w] || AR[w.replace(/^و/, '')] || w;
 const hit = (h, q) => q.split(/[\s\-]+/).filter(Boolean).map(tok).every((w) => { const t = w.replace(/[^a-z0-9]/gi, '').toLowerCase(); return t && new RegExp('(^|[^a-z0-9])' + t + '(es|s)?($|[^a-z0-9])').test(h); });
-function filtered() {
-  const q = $('q').value.trim().toLowerCase(), p = $('crop').value, c = $('county').value, f = $('from').value, h = $('has').value, k = $('kind').value;
-  return ALL.filter((x) => (!f || (f === 'both' ? (x.from.includes('fsis') && x.from.includes('org')) : x.from.includes(f))) && (!c || x.county === c) && (!k || (k === 'main' ? x.kind !== 'service' : x.kind === 'service')) && (!h || x[h]) && (!p || hit(x.hay, p)) && (!q || hit(x.hay, q)));
+function filtered(skipCity) {
+  const q = $('q').value.trim().toLowerCase(), p = $('crop').value, c = $('county').value, f = $('from').value, h = $('has').value, k = $('kind').value, ct = skipCity ? '' : $('city').value;
+  return ALL.filter((x) => (!f || (f === 'both' ? (x.from.includes('fsis') && x.from.includes('org')) : x.from.includes(f))) && (!c || x.county === c) && (!ct || cityTokens(x).some((z) => z.k === ct)) && (!k || (k === 'main' ? x.kind !== 'service' : x.kind === 'service')) && (!h || x[h]) && (!p || hit(x.hay, p)) && (!q || hit(x.hay, q)));
+}
+const cityTokens = (x) => x._ct || (x._ct = String(x.city || '').split('/').map((s) => s.replace(/^[,\s]+|[,\s]+$/g, '')).filter((s) => s && !/county$/i.test(s)).map((s) => ({ k: s.toLowerCase().replace(/[^a-z0-9]/g, ''), n: s })).filter((z) => z.k));
+let CITYNAME = null;
+function buildCities() {
+  const sel = $('city'), cur = sel.value;
+  if (!CITYNAME) { CITYNAME = {}; ALL.forEach((x) => cityTokens(x).forEach((z) => { if (!CITYNAME[z.k]) CITYNAME[z.k] = z.n; })); }
+  const cnt = {};
+  filtered(true).forEach((x) => { const seen = {}; cityTokens(x).forEach((z) => { if (seen[z.k]) return; seen[z.k] = 1; cnt[z.k] = (cnt[z.k] || 0) + 1; }); });
+  if (cur && !cnt[cur] && CITYNAME[cur]) cnt[cur] = 0;
+  const keys = Object.keys(cnt).sort((a, b) => CITYNAME[a].localeCompare(CITYNAME[b]));
+  sel.innerHTML = '<option value="">كل المدن</option>' + keys.map((k) => '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(CITYNAME[k]) + ' (' + cnt[k] + ')</option>').join('');
 }
 const place = (x) => { const c = (x.county || '').toLowerCase(), t = (x.city || '').toLowerCase(); return (c && t.indexOf(c) === 0 && /county$/.test(t)) ? ltr(x.city) : ltr(x.city.replace(/\//g, ' / ')) + (x.county ? '، ' + ltr(x.county) : ''); };
 const cropsOf = (x) => { const t = x.crops || (x.text || '').split(' | ')[0]; return t.length > 140 ? t.slice(0, 137) + '...' : t; };
@@ -128,14 +140,15 @@ async function init() {
     const cs = {};
     ALL.forEach((x) => { if (x.county) cs[x.county] = (cs[x.county] || 0) + 1; });
     $('county').innerHTML = '<option value="">كل المقاطعات</option>' + Object.keys(cs).sort().map((c) => '<option value="' + esc(c) + '">' + esc(c) + ' (' + cs[c] + ')</option>').join('');
+    buildCities();
     $('src').textContent = 'الترخيص: بيانات FSIS CC0، وبيانات INTEGRITY وFDA وUSDA GAP منشورات حكومية عامة. الدمج بين المصدرين تلقائي بالاسم والرمز البريدي وقد يحتوي أخطاء.';
     render();
   } catch (e) { $('list').innerHTML = '<p class="empty">تعذّر تحميل البيانات (' + esc(e.message) + '). حدّث الصفحة وحاول تاني.</p>'; }
 }
-['q', 'from', 'has', 'kind', 'crop', 'county'].forEach((id) => $(id).addEventListener('input', () => { shown = 30; render(); }));
+['q', 'from', 'has', 'kind', 'crop', 'county', 'city'].forEach((id) => $(id).addEventListener('input', () => { shown = 30; if (id !== 'city') buildCities(); render(); }));
 $('more').addEventListener('click', () => { shown += 30; render(); });
 init();
 </script>
 <script src="/nav.js"></script>
 </body>
-  </html>
+                                                                                                                                                                                                                                                                                                                                                                                                           </html>
