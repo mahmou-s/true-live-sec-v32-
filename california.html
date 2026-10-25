@@ -85,7 +85,7 @@ function applyCounty(map) {
   ALL.forEach((x) => {
     if (!x.from || !x.from.includes('gap') || x.county) return;
     const c = map[skey(x.city)];
-    if (c) { x.county = c; x.countyNote = true; }
+    if (c) { x.county = String(c).replace(/\s+County$/i, ''); x.countyNote = true; }
   });
 }
 const link = (u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u);
@@ -105,7 +105,7 @@ function card(x) {
     + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
     + (x.certifier ? '<br>جهة الاعتماد: ' + ltr(x.certifier) : '')
     + (x.contactSrc ? '<br>بيانات التواصل من موقع الشركة: <a href="' + esc(x.contactSrc.url) + '" target="_blank" rel="noopener">الصفحة المصدر</a>، تاريخ التأكد ' + ltr(x.contactSrc.checkedDate) : '')
-    + (x.countyNote ? '<br>المقاطعة: ' + ltr(x.county) + ' (حسب المدينة المكتوبة في عنوان GAP، من جدول Census 2020 للأماكن والمقاطعات، مش حسب إحداثيات العنوان)' : '')
+    + (x.countyNote ? '<br>المقاطعة: ' + ltr(x.county + ' County') + ' (حسب المدينة المكتوبة في عنوان GAP، من جدول Census 2020 للأماكن والمقاطعات، مش حسب إحداثيات العنوان)' : '')
     + (x.county ? '<br><a href="/farm.html?st=CA&co=' + encodeURIComponent(x.county) + cropOf(x) + '">أرقام الإنتاج الزراعي في مقاطعة ' + ltr(x.county) + '</a>' : '')
     + (!x.website && x.from.includes('gap') ? '<br>رابط "ابحث عن الشركة" مجرد بحث على الإنترنت بالاسم والمدينة، مش بيانات من المصدر ولم نتحقق من النتائج.' : '')
     + '<br>المصدر: ' + srcs + '</div></details></article>';
@@ -145,10 +145,10 @@ async function init() {
     render();
   } catch (e) { $('list').innerHTML = '<p class="empty">تعذّر تحميل البيانات (' + esc(e.message) + '). حدّث الصفحة وحاول تاني.</p>'; }
 }
-['q', 'from', 'has', 'kind', 'crop', 'county', 'city'].forEach((id) => $(id).addEventListener('input', () => { shown = 30; if (id !== 'city') buildCities(); render(); }));
+['q', 'from', 'has', 'kind', 'crop', 'county', 'city'].forEach((id) => $(id).addEventListener('input', () => { shown = 30; if (id === 'county') $('city').value = ''; if (id !== 'city') buildCities(); render(); }));
 $('more').addEventListener('click', () => { shown += 30; render(); });
 init();
 </script>
 <script src="/nav.js"></script>
 </body>
-                                                                                                                                                                                                                                                                                                                                                                                                           </html>
+</html>
