@@ -80,10 +80,10 @@ function applyContacts(list) {
     if (added) { x.contactSrc = { url: s.url, checkedDate: s.checkedDate }; }
   });
 }
-function applyCounty(map) {
+function applyCounty(map, key) {
   if (!map) return;
   ALL.forEach((x) => {
-    if (!x.from || !x.from.includes('gap') || x.county) return;
+    if (!x.from || !x.from.includes(key) || x.county) return;
     const c = map[skey(x.city)];
     if (c) { x.county = String(c).replace(/\s+County$/i, ''); x.countyNote = true; }
   });
@@ -105,7 +105,7 @@ function card(x) {
     + (x.email ? '<br>الإيميل كما نشره المصدر: ' + ltr(x.email) : '') + (x.contact ? '<br>جهة الاتصال: ' + ltr(x.contact) : '')
     + (x.certifier ? '<br>جهة الاعتماد: ' + ltr(x.certifier) : '')
     + (x.contactSrc ? '<br>بيانات التواصل من موقع الشركة: <a href="' + esc(x.contactSrc.url) + '" target="_blank" rel="noopener">الصفحة المصدر</a>، تاريخ التأكد ' + ltr(x.contactSrc.checkedDate) : '')
-    + (x.countyNote ? '<br>المقاطعة: ' + ltr(x.county + ' County') + ' (حسب المدينة المكتوبة في عنوان GAP، من جدول Census 2020 للأماكن والمقاطعات، مش حسب إحداثيات العنوان)' : '')
+    + (x.countyNote ? '<br>المقاطعة: ' + ltr(x.county + ' County') + ' (حسب المدينة المكتوبة في سجل المصدر، من جدول Census 2020 للأماكن والمقاطعات، مش حسب إحداثيات العنوان)' : '')
     + (x.county ? '<br><a href="/farm.html?st=CA&co=' + encodeURIComponent(x.county) + cropOf(x) + '">أرقام الإنتاج الزراعي في مقاطعة ' + ltr(x.county) + '</a>' : '')
     + (!x.website && x.from.includes('gap') ? '<br>رابط "ابحث عن الشركة" مجرد بحث على الإنترنت بالاسم والمدينة، مش بيانات من المصدر ولم نتحقق من النتائج.' : '')
     + '<br>المصدر: ' + srcs + '</div></details></article>';
@@ -134,7 +134,8 @@ async function init() {
         } catch (e) { /* مصدر إضافي فشل: نكمل من غيره */ }
       }
       try { const cr = await fetch('/ca-gap-contacts.json'); if (cr.ok) applyContacts((await cr.json()).items); } catch (e) { /* مفيش ملف تواصل: نكمل من غيره */ }
-      try { const kr = await fetch('/ca-gap-county.json'); if (kr.ok) applyCounty((await kr.json()).map); } catch (e) { /* مفيش ملف مقاطعات: نكمل من غيره */ }
+      try { const kr = await fetch('/ca-gap-county.json'); if (kr.ok) applyCounty((await kr.json()).map, 'gap'); } catch (e) { /* مفيش ملف مقاطعات: نكمل من غيره */ }
+      try { const dr = await fetch('/ca-dairy-county.json'); if (dr.ok) applyCounty((await dr.json()).map, 'dairy'); } catch (e) { /* مفيش ملف مقاطعات الألبان: نكمل من غيره */ }
       ALL.sort((a, b) => a.name.localeCompare(b.name));
     } catch (e) { /* مفيش مصادر إضافية */ }
     const cs = {};
