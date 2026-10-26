@@ -1,0 +1,42 @@
+{
+  "source": {
+    "name": "U.S. Census Bureau 2020 Place by County (California)",
+    "url": "https://www2.census.gov/geo/docs/reference/codes2020/place_by_cou/st06_ca_place_by_county2020.txt",
+    "checkedDate": "2026-10-26",
+    "note": "County by the city named in the FDA IMS record (City Of Industry matched to the Census place 'Industry'). Not geocoded from an address. Hilmar and Sun Valley left blank (no exact Census place)."
+  },
+  "map": {
+    "bakersfield": "Kern County",
+    "chino": "San Bernardino County",
+    "cityofindustry": "Los Angeles County",
+    "commerce": "Los Angeles County",
+    "downey": "Los Angeles County",
+    "elmonte": "Los Angeles County",
+    "fairfield": "Solano County",
+    "fortuna": "Humboldt County",
+    "fresno": "Fresno County",
+    "gustine": "Merced County",
+    "hanford": "Kings County",
+    "industry": "Los Angeles County",
+    "lemoore": "Kings County",
+    "lindsay": "Tulare County",
+    "losangeles": "Los Angeles County",
+    "modesto": "Stanislaus County",
+    "newman": "Stanislaus County",
+    "petaluma": "Sonoma County",
+    "riverside": "Riverside County",
+    "rohnertpark": "Sonoma County",
+    "sacramento": "Sacramento County",
+    "sanbernardino": "San Bernardino County",
+    "sanleandro": "Alameda County",
+    "sanmarcos": "San Diego County",
+    "santaana": "Orange County",
+    "sebastopol": "Sonoma County",
+    "tipton": "Tulare County",
+    "tracy": "San Joaquin County",
+    "tulare": "Tulare County",
+    "turlock": "Stanislaus County",
+    "visalia": "Tulare County",
+    "willows": "Glenn County"
+  }
+}
