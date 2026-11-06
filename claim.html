@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Company — MSMMK</title>
+<link rel="stylesheet" href="/app.css">
+<style>
+.wrap{max-width:560px;margin:20px auto;padding:16px}
+.card{border:1px solid #ddd;border-radius:10px;padding:16px;margin:10px 0}
+.card button,.big-btn{display:block;width:100%;padding:16px;margin:8px 0;border:1px solid #ccc;border-radius:8px;background:#fff;font-size:16px;text-align:inherit;cursor:pointer}
+.big-btn b{display:block;font-size:17px}
+.big-btn span{color:#666;font-size:13px}
+input[type=text],input[type=email],input[type=tel],input[type=url],input[type=password],select,textarea{width:100%;box-sizing:border-box;padding:10px;margin:5px 0 12px;border:1px solid #ccc;border-radius:6px;font-size:16px}
+label{font-weight:600;font-size:14px}
+.goal-item{display:flex;align-items:center;gap:8px;margin:6px 0}
+.primary{background:#1a6fd4;color:#fff;border:0;border-radius:6px;padding:12px;width:100%;font-size:16px;cursor:pointer}
+.msg{margin:10px 0;padding:10px;border-radius:6px}
+.msg.ok{background:#e6f7e9;color:#176f2c}
+.msg.err{background:#fde8e8;color:#a31212}
+.msg.pending{background:#fff6e0;color:#8a6500}
+.result-item{border:1px solid #eee;border-radius:8px;padding:10px;margin:6px 0;cursor:pointer}
+.lang-toggle{float:inline-end;background:none;border:1px solid #ccc;border-radius:6px;padding:4px 10px;cursor:pointer}
+html[dir=rtl] .wrap{text-align:right}
+</style>
+</head>
+<body>
+<main class="page wrap">
+<button class="lang-toggle" id="langBtn">العربية</button>
+<div id="app"></div>
+</main>
+<script src="/merge2.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://migckovlfckdnsanemkd.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const app = $('app');
+
+let lang = 'en';
+const T = {
+  en: {
+    title: 'My Company', gatewayTitle: 'Is your company already here?',
+    existingBtn: 'Existing Company', existingSub: 'Search the directory and claim your listing',
+    newBtn: 'New Company', newSub: 'Register a company that is not listed yet',
+    searchPlaceholder: 'Type the official company name', searchBtn: 'Search', searching: 'Searching…',
+    noResults: 'No matching company found.', registerInstead: 'Register it as a new company instead',
+    back: 'Back', isThisYours: 'Is this your company?', claimEmailLabel: 'Email you will use for this claim',
+    confirmClaim: 'Confirm this is my company', signupTitle: 'Create an account or sign in',
+    email: 'Email', password: 'Password', signup: 'Create account', login: 'Sign in',
+    signupOk: 'A confirmation email was sent. Open it, click the link, then come back and sign in.',
+    loggedInAs: 'Signed in as', verifiedMsg: 'Confirmed instantly — your email matches the company domain.',
+    pendingMsg: 'Request submitted for manual review. We will email you the result.',
+    newFormTitle: 'Register a new company', officialName: 'Official company name', country: 'Country',
+    stateRegion: 'State / Region / Province', city: 'City', street: 'Street', neighborhood: 'Neighborhood (optional)',
+    website: 'Website (optional)', officialEmail: 'Official company email', officialPhone: 'Phone number',
+    yourRole: 'Your relationship to this company', roleOwner: 'Owner / Founder', roleRep: 'Authorized Representative',
+    roleEmp: 'Employee / Management', goalsTitle: 'What are your Company\'s Goals?',
+    goalSell: 'Sell products or services', goalBuy: 'Buy products or raw materials', goalSuppliers: 'Find suppliers',
+    goalCustomers: 'Find customers and markets', goalSupport: 'Technical support and expertise',
+    goalFinance: 'Financing and investment', goalPartners: 'Find business partners',
+    goalLogistics: 'Logistics and transportation', goalOther: 'Other', otherDetail: 'Please specify',
+    submit: 'Submit for review', missingParams: 'No company info in the link. Go back to the directory and use "This is my company" on a listing, or',
+    errGeneric: 'Something went wrong, please try again', selectGoal: 'Select at least one goal'
+  },
+  ar: {
+    title: 'شركتي', gatewayTitle: 'شركتك موجودة في الدليل؟',
+    existingBtn: 'شركة موجودة', existingSub: 'ابحث في الدليل وطالب بملف شركتك',
+    newBtn: 'شركة جديدة', newSub: 'سجّل شركة لسه مش موجودة في الدليل',
+    searchPlaceholder: 'اكتب الاسم الرسمي للشركة', searchBtn: 'بحث', searching: 'جاري البحث…',
+    noResults: 'مفيش شركة مطابقة.', registerInstead: 'سجّلها كشركة جديدة بدل كده',
+    back: 'رجوع', isThisYours: 'هل ده شركتك؟', claimEmailLabel: 'الإيميل اللي هتستخدمه للمطالبة',
+    confirmClaim: 'تأكيد إن دي شركتي', signupTitle: 'اعمل حساب أو سجّل دخول',
+    email: 'الإيميل', password: 'كلمة السر', signup: 'إنشاء حساب', login: 'تسجيل الدخول',
+    signupOk: 'اتبعتلك إيميل تأكيد. افتحه ودوس على الرابط، وبعدين ارجع وسجّل دخول.',
+    loggedInAs: 'مسجّل دخول كـ', verifiedMsg: 'اتأكد فورًا — إيميلك على نفس دومين موقع الشركة.',
+    pendingMsg: 'الطلب اتسجّل لمراجعة يدوية. هنبلغك بالنتيجة على إيميلك.',
+    newFormTitle: 'تسجيل شركة جديدة', officialName: 'الاسم الرسمي للشركة', country: 'الدولة',
+    stateRegion: 'الولاية / المحافظة / المنطقة', city: 'المدينة', street: 'الشارع', neighborhood: 'الحي (اختياري)',
+    website: 'الموقع الإلكتروني (اختياري)', officialEmail: 'الإيميل الرسمي للشركة', officialPhone: 'رقم التليفون',
+    yourRole: 'علاقتك بالشركة', roleOwner: 'مالك / مؤسس', roleRep: 'ممثل مفوَّض',
+    roleEmp: 'موظف / إدارة', goalsTitle: 'إيه أهداف شركتك؟',
+    goalSell: 'بيع منتجات أو خدمات', goalBuy: 'شراء منتجات أو مواد خام', goalSuppliers: 'الدخول على موردين',
+    goalCustomers: 'الوصول لعملاء وأسواق', goalSupport: 'دعم وخبرة فنية',
+    goalFinance: 'تمويل واستثمار', goalPartners: 'إيجاد شركاء أعمال',
+    goalLogistics: 'لوجستيات ونقل', goalOther: 'حاجة تانية', otherDetail: 'وضّح من فضلك',
+    submit: 'إرسال للمراجعة', missingParams: 'مفيش بيانات شركة في الرابط. ارجع للدليل واضغط "هذه شركتي" من كارت، أو',
+    errGeneric: 'حصل خطأ، جرّب تاني', selectGoal: 'اختار هدف واحد على الأقل'
+  }
+};
+function t(k) { return T[lang][k]; }
+
+$('langBtn').onclick = () => {
+  lang = lang === 'en' ? 'ar' : 'en';
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  $('langBtn').textContent = lang === 'en' ? 'العربية' : 'English';
+  render();
+};
+
+const qs = new URLSearchParams(location.search);
+let selectedCompany = qs.get('name') ? { source: qs.get('source') || '', name: qs.get('name'), city: qs.get('city') || '', website: qs.get('website') || '' } : null;
+let view = selectedCompany ? 'claim' : 'gateway';
+
+async function getSession() { const { data } = await sb.auth.getSession(); return data.session; }
+
+let ALL_CACHE = null;
+const nkeyL = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\b(llc|inc|co|corp|corporation|company|ltd|lp|the|farms?|ranch|orchards?|and)\b/g, ' ').replace(/\s+/g, ' ').trim();
+const ckeyL = (c) => String(c || '').toLowerCase().split('/')[0].replace(/[^a-z]/g, '');
+function mergeGapLocal(all, items) {
+  const idx = new Map();
+  all.forEach((x) => { if (!x.from || !x.from.includes('org')) return; [x.name].concat(x.names || []).forEach((n) => { const k = nkeyL(n) + '|' + ckeyL(x.city); if (nkeyL(n) && !idx.has(k)) idx.set(k, x); }); });
+  const rest = [];
+  items.forEach((g) => {
+    const m = [g.name].concat(g.names || []).map((n) => idx.get(nkeyL(n) + '|' + ckeyL(g.city))).find(Boolean);
+    if (!m) { rest.push(g); return; }
+    if (!m.from.includes('gap')) m.from.push('gap');
+    (g.tags || []).forEach((tg) => { if (!m.tags.includes(tg)) m.tags.push(tg); });
+    m.sources.push(g.sources[0]); m.hay += ' ' + g.hay;
+  });
+  return rest;
+}
+async function loadAll() {
+  if (ALL_CACHE) return ALL_CACHE;
+  const [fr, orr] = await Promise.all([fetch('/ca-fsis.json'), fetch('/ca-organic.json')]);
+  if (!fr.ok || !orr.ok) throw new Error('load failed');
+  const [f, o] = await Promise.all([fr.json(), orr.json()]);
+  f.source = f.items[0] && f.items[0].source;
+  let all = buildAll(f, o);
+  try {
+    const m = await (await fetch('/ca-extra.json')).json();
+    for (const x of m.sources) {
+      try {
+        const d = await (await fetch(x.file)).json();
+        d.items.forEach((r) => { r.hay = (r.name + ' ' + (r.names || []).join(' ') + ' ' + r.city + ' ' + r.text).toLowerCase(); });
+        if (x.key === 'gap') { all.push(...mergeGapLocal(all, d.items)); } else { all.push(...d.items); }
+      } catch (e) { /* مصدر إضافي فشل: نكمل من غيره */ }
+    }
+  } catch (e) { /* مفيش مصادر إضافية */ }
+  ALL_CACHE = all;
+  return all;
+}
+async function searchCompanies(q) {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return [];
+  let all;
+  try { all = await loadAll(); } catch (e) { return []; }
+  const matches = all.filter((x) => x.name && x.name.toLowerCase().includes(needle));
+  return matches.slice(0, 20).map((x) => ({ source: (x.from && x.from[0]) || '', name: x.name, city: x.city || '', website: x.website || '' }));
+}
+
+function render() {
+  if (view === 'gateway') return renderGateway();
+  if (view === 'search') return renderSearch();
+  if (view === 'claim') return renderClaim();
+  if (view === 'newForm') return renderNewForm();
+}
+
+function renderGateway() {
+  app.innerHTML =
+    '<h1>' + t('title') + '</h1><h3>' + t('gatewayTitle') + '</h3>' +
+    '<button class="big-btn" id="goExisting"><b>' + t('existingBtn') + '</b><span>' + t('existingSub') + '</span></button>' +
+    '<button class="big-btn" id="goNew"><b>' + t('newBtn') + '</b><span>' + t('newSub') + '</span></button>';
+  $('goExisting').onclick = () => { view = 'search'; render(); };
+  $('goNew').onclick = () => { view = 'newForm'; render(); };
+}
+
+function renderSearch() {
+  app.innerHTML =
+    '<button id="backBtn">&larr; ' + t('back') + '</button>' +
+    '<h1>' + t('existingBtn') + '</h1>' +
+    '<input id="q" type="text" placeholder="' + esc(t('searchPlaceholder')) + '">' +
+    '<button class="primary" id="searchBtn">' + t('searchBtn') + '</button>' +
+    '<div id="results"></div>';
+  $('backBtn').onclick = () => { view = 'gateway'; render(); };
+  $('searchBtn').onclick = async () => {
+    $('results').innerHTML = '<p>' + t('searching') + '</p>';
+    const list = await searchCompanies($('q').value);
+    if (list.length === 0) {
+      $('results').innerHTML = '<p>' + t('noResults') + '</p><button class="primary" id="goNew2">' + t('registerInstead') + '</button>';
+      $('goNew2').onclick = () => { view = 'newForm'; render(); };
+      return;
+    }
+    $('results').innerHTML = list.map((c, i) =>
+      '<div class="result-item" data-i="' + i + '"><b>' + esc(c.name) + '</b><br><span>' + esc(c.city) + '</span></div>'
+    ).join('');
+    document.querySelectorAll('.result-item').forEach((el) => {
+      el.onclick = () => { selectedCompany = list[el.getAttribute('data-i')]; view = 'claim'; render(); };
+    });
+  };
+}
+
+async function renderClaim() {
+  if (!selectedCompany || !selectedCompany.name || !selectedCompany.city) {
+    app.innerHTML = '<p>' + t('missingParams') + ' <a href="/claim.html">' + t('back') + '</a></p>';
+    return;
+  }
+  const session = await getSession();
+  app.innerHTML =
+    '<button id="backBtn">&larr; ' + t('back') + '</button>' +
+    '<h1>' + t('isThisYours') + '</h1>' +
+    '<h3>' + esc(selectedCompany.name) + '</h3><p>' + esc(selectedCompany.city) + '</p>' +
+    '<div id="msg"></div><div id="authArea"></div>' +
+    '<div id="claimArea" hidden><label>' + t('claimEmailLabel') + '</label>' +
+    '<input id="claimEmail" type="email"><button class="primary" id="claimBtn">' + t('confirmClaim') + '</button></div>';
+  $('backBtn').onclick = () => { view = qs.get('name') ? 'gateway' : 'search'; selectedCompany = qs.get('name') ? selectedCompany : null; render(); };
+  if (session) showClaimForm(session); else showAuthForm(renderClaim);
+}
+
+function showAuthForm(after) {
+  $('authArea').innerHTML =
+    '<h3>' + t('signupTitle') + '</h3>' +
+    '<label>' + t('email') + '</label><input id="email" type="email">' +
+    '<label>' + t('password') + '</label><input id="password" type="password">' +
+    '<button class="primary" id="signupBtn">' + t('signup') + '</button>' +
+    '<button class="primary" id="loginBtn" style="margin-top:6px">' + t('login') + '</button>';
+  $('signupBtn').onclick = async () => {
+    const email = $('email').value.trim(), password = $('password').value;
+    if (!email || password.length < 6) { setMsg(t('errGeneric'), 'err'); return; }
+    const { error } = await sb.auth.signUp({ email, password });
+    if (error) setMsg(error.message, 'err'); else setMsg(t('signupOk'), 'ok');
+  };
+  $('loginBtn').onclick = async () => {
+    const email = $('email').value.trim(), password = $('password').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) setMsg(error.message, 'err'); else after();
+  };
+}
+
+function showClaimForm(session) {
+  $('authArea').innerHTML = '<p>' + t('loggedInAs') + ' ' + esc(session.user.email) + '</p>';
+  $('claimEmail').value = session.user.email;
+  $('claimArea').hidden = false;
+  $('claimBtn').onclick = async () => {
+    $('claimBtn').disabled = true;
+    try {
+      const resp = await fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ source: selectedCompany.source, name: selectedCompany.name, city: selectedCompany.city, website: selectedCompany.website, claim_email: $('claimEmail').value.trim() })
+      });
+      const result = await resp.json();
+      if (!resp.ok) setMsg(result.error || t('errGeneric'), 'err');
+      else if (result.status === 'verified') setMsg(t('verifiedMsg'), 'ok');
+      else setMsg(t('pendingMsg'), 'pending');
+    } catch (e) { setMsg(t('errGeneric'), 'err'); }
+    $('claimBtn').disabled = false;
+  };
+}
+
+const GOALS = ['sell_products_services','buy_products_raw_materials','find_suppliers','find_customers_markets','technical_support_expertise','financing_investment','find_business_partners','logistics_transportation','other'];
+const GOAL_LABEL_KEY = { sell_products_services:'goalSell', buy_products_raw_materials:'goalBuy', find_suppliers:'goalSuppliers', find_customers_markets:'goalCustomers', technical_support_expertise:'goalSupport', financing_investment:'goalFinance', find_business_partners:'goalPartners', logistics_transportation:'goalLogistics', other:'goalOther' };
+
+async function renderNewForm() {
+  const session = await getSession();
+  app.innerHTML =
+    '<button id="backBtn">&larr; ' + t('back') + '</button>' +
+    '<h1>' + t('newFormTitle') + '</h1>' +
+    '<div id="msg"></div>' +
+    (!session ? '<div id="authArea"></div>' : '<p>' + t('loggedInAs') + ' ' + esc(session.user.email) + '</p>') +
+    '<div id="formArea"' + (!session ? ' hidden' : '') + '>' +
+    '<label>' + t('officialName') + '</label><input id="f_name" type="text">' +
+    '<label>' + t('country') + '</label><input id="f_country" type="text">' +
+    '<label>' + t('stateRegion') + '</label><input id="f_state" type="text">' +
+    '<label>' + t('city') + '</label><input id="f_city" type="text">' +
+    '<label>' + t('street') + '</label><input id="f_street" type="text">' +
+    '<label>' + t('neighborhood') + '</label><input id="f_neighborhood" type="text">' +
+    '<label>' + t('website') + '</label><input id="f_website" type="url" placeholder="https://">' +
+    '<label>' + t('officialEmail') + '</label><input id="f_email" type="email">' +
+    '<label>' + t('officialPhone') + '</label><input id="f_phone" type="tel">' +
+    '<label>' + t('yourRole') + '</label>' +
+    '<select id="f_role"><option value="owner_founder">' + t('roleOwner') + '</option><option value="authorized_representative">' + t('roleRep') + '</option><option value="employee_management">' + t('roleEmp') + '</option></select>' +
+    '<label>' + t('goalsTitle') + '</label>' +
+    GOALS.map((g) => '<div class="goal-item"><input type="checkbox" class="goalChk" value="' + g + '" id="g_' + g + '"><label for="g_' + g + '">' + t(GOAL_LABEL_KEY[g]) + '</label></div>').join('') +
+    '<div id="otherWrap" hidden><label>' + t('otherDetail') + '</label><textarea id="f_other"></textarea></div>' +
+    '<button class="primary" id="submitBtn">' + t('submit') + '</button>' +
+    '</div>';
+  $('backBtn').onclick = () => { view = 'gateway'; render(); };
+  const otherChk = () => { $('g_other') && ($('otherWrap').hidden = !$('g_other').checked); };
+  document.querySelectorAll('.goalChk').forEach((c) => { c.onchange = otherChk; });
+  if (!session) {
+    showAuthForm(async () => { const s2 = await getSession(); $('authArea').outerHTML = '<p>' + t('loggedInAs') + ' ' + esc(s2.user.email) + '</p>'; $('formArea').hidden = false; });
+  }
+  $('submitBtn').onclick = async () => {
+    const s = await getSession();
+    if (!s) { setMsg(t('errGeneric'), 'err'); return; }
+    const goals = Array.from(document.querySelectorAll('.goalChk:checked')).map((c) => c.value);
+    if (goals.length === 0) { setMsg(t('selectGoal'), 'err'); return; }
+    $('submitBtn').disabled = true;
+    try {
+      const resp = await fetch('/api/register-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.access_token },
+        body: JSON.stringify({
+          name: $('f_name').value.trim(), country: $('f_country').value.trim(), state_region: $('f_state').value.trim(),
+          city: $('f_city').value.trim(), street: $('f_street').value.trim(), neighborhood: $('f_neighborhood').value.trim(),
+          website: $('f_website').value.trim(), official_email: $('f_email').value.trim(), official_phone: $('f_phone').value.trim(),
+          requester_role: $('f_role').value, goals: goals, other_detail: $('f_other') ? $('f_other').value.trim() : ''
+        })
+      });
+      const result = await resp.json();
+      if (!resp.ok) setMsg(result.error || t('errGeneric'), 'err');
+      else setMsg(t('pendingMsg'), 'pending');
+    } catch (e) { setMsg(t('errGeneric'), 'err'); }
+    $('submitBtn').disabled = false;
+  };
+}
+
+function setMsg(text, kind) { $('msg') && ($('msg').innerHTML = text ? '<div class="msg ' + kind + '">' + esc(text) + '</div>' : ''); }
+
+render();
+</script>
+<script src="/nav.js"></script>
+</body>
+  </html>
