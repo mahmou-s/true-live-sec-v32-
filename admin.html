@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مراجعة الطلبات — MSMMK Admin</title>
+<link rel="stylesheet" href="/app.css">
+<style>
+.wrap{max-width:680px;margin:20px auto;padding:16px}
+.item{border:1px solid #ddd;border-radius:10px;padding:14px;margin:10px 0}
+.item h3{margin:0 0 4px}
+.item p{margin:2px 0;color:#444;font-size:14px}
+.badge{display:inline-block;background:#eef;border-radius:5px;padding:2px 8px;font-size:12px;margin-left:6px}
+.row{display:flex;gap:10px;margin-top:10px}
+.row button{flex:1;padding:10px;border:0;border-radius:6px;font-size:15px;cursor:pointer}
+.approve{background:#176f2c;color:#fff}
+.reject{background:#a31212;color:#fff}
+input[type=email],input[type=password]{width:100%;box-sizing:border-box;padding:10px;margin:5px 0 12px;border:1px solid #ccc;border-radius:6px;font-size:16px}
+.primary{background:#1a6fd4;color:#fff;border:0;border-radius:6px;padding:12px;width:100%;font-size:16px;cursor:pointer}
+.msg{margin:10px 0;padding:10px;border-radius:6px}
+.msg.err{background:#fde8e8;color:#a31212}
+.msg.ok{background:#e6f7e9;color:#176f2c}
+</style>
+</head>
+<body>
+<main class="page wrap">
+<h1>مراجعة طلبات المطالبة والتسجيل</h1>
+<div id="msg"></div>
+<div id="app"></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://migckovlfckdnsanemkd.supabase.co';
+const SUPABASE_ANON_KEY ='const SUPABASE_ANON_KEY = 'Sb_publishable_l9ELosMWlPpUqAenWdwRrQ_vnPEknqk ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ROLE_AR = { owner_founder: 'مالك/مؤسس', authorized_representative: 'ممثل مفوَّض', employee_management: 'موظف/إدارة' };
+
+function setMsg(text, kind) { $('msg').innerHTML = text ? '<div class="msg ' + kind + '">' + esc(text) + '</div>' : ''; }
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showLogin(); return; }
+  loadClaims(session);
+}
+
+function showLogin() {
+  $('app').innerHTML =
+    '<label>الإيميل</label><input id="email" type="email">' +
+    '<label>كلمة السر</label><input id="password" type="password">' +
+    '<button class="primary" id="loginBtn">تسجيل الدخول</button>';
+  $('loginBtn').onclick = async () => {
+    const email = $('email').value.trim(), password = $('password').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) setMsg(error.message, 'err'); else init();
+  };
+}
+
+async function loadClaims(session) {
+  $('app').innerHTML = '<p>جاري التحميل…</p>';
+  try {
+    const resp = await fetch('/api/admin', { headers: { Authorization: 'Bearer ' + session.access_token } });
+    const data = await resp.json();
+    if (!resp.ok) { setMsg(data.error || 'حصل خطأ', 'err'); $('app').innerHTML = ''; return; }
+    renderClaims(data.claims, session);
+  } catch (e) { setMsg('حصل خطأ في الاتصال', 'err'); }
+}
+
+function renderClaims(claims, session) {
+  if (!claims || claims.length === 0) { $('app').innerHTML = '<p>مفيش طلبات معلّقة دلوقتي.</p>'; return; }
+  $('app').innerHTML = claims.map((c) => {
+    const co = c.companies || {};
+    return '<div class="item" data-id="' + c.id + '">' +
+      '<h3>' + esc(co.name || '—') + '</h3>' +
+      '<p>' + esc(co.city || '') + (co.country ? '، ' + esc(co.country) : '') + '</p>' +
+      (co.website ? '<p>الموقع: ' + esc(co.website) + '</p>' : '') +
+      '<p>الإيميل المستخدم: ' + esc(c.claim_email) + '</p>' +
+      (c.requester_role ? '<p>العلاقة: ' + esc(ROLE_AR[c.requester_role] || c.requester_role) + '</p>' : '') +
+      '<span class="badge">' + esc(c.verification_method) + '</span>' +
+      '<span class="badge">' + esc(co.source || '') + '</span>' +
+      '<div class="row"><button class="approve">موافقة</button><button class="reject">رفض</button></div>' +
+      '</div>';
+  }).join('');
+  document.querySelectorAll('.approve').forEach((btn) => { btn.onclick = () => decide(btn, session, 'approved'); });
+  document.querySelectorAll('.reject').forEach((btn) => { btn.onclick = () => decide(btn, session, 'rejected'); });
+}
+
+async function decide(btn, session, decision) {
+  const item = btn.closest('.item');
+  const claimId = item.getAttribute('data-id');
+  item.querySelectorAll('button').forEach((b) => b.disabled = true);
+  try {
+    const resp = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify({ claim_id: claimId, decision: decision })
+    });
+    const data = await resp.json();
+    if (!resp.ok) { setMsg(data.error || 'حصل خطأ', 'err'); item.querySelectorAll('button').forEach((b) => b.disabled = false); return; }
+    item.remove();
+    setMsg(decision === 'approved' ? 'تمت الموافقة' : 'تم الرفض', 'ok');
+  } catch (e) { setMsg('حصل خطأ في الاتصال', 'err'); item.querySelectorAll('button').forEach((b) => b.disabled = false); }
+}
+
+init();
+</script>
+</body>
+                </html>
