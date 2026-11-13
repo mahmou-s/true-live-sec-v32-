@@ -17,7 +17,7 @@
 .reject{background:#a31212;color:#fff}
 input[type=email],input[type=password]{width:100%;box-sizing:border-box;padding:10px;margin:5px 0 12px;border:1px solid #ccc;border-radius:6px;font-size:16px}
 .primary{background:#1a6fd4;color:#fff;border:0;border-radius:6px;padding:12px;width:100%;font-size:16px;cursor:pointer}
-.msg{margin:10px 0;padding:10px;border-radius:6px}
+.msg{margin:10px 0;padding:10px;border-radius:6px;word-break:break-word}
 .msg.err{background:#fde8e8;color:#a31212}
 .msg.ok{background:#e6f7e9;color:#176f2c}
 </style>
@@ -61,10 +61,20 @@ async function loadClaims(session) {
   $('app').innerHTML = '<p>جاري التحميل…</p>';
   try {
     const resp = await fetch('/api/admin', { headers: { Authorization: 'Bearer ' + session.access_token } });
-    const data = await resp.json();
-    if (!resp.ok) { setMsg(data.error || 'حصل خطأ', 'err'); $('app').innerHTML = ''; return; }
+    const rawText = await resp.text();
+    let data;
+    try { data = JSON.parse(rawText); }
+    catch (parseErr) {
+      $('app').innerHTML = '';
+      setMsg('الخادم رجّع رد غير متوقع (status ' + resp.status + '): ' + rawText.slice(0, 300), 'err');
+      return;
+    }
+    if (!resp.ok) { $('app').innerHTML = ''; setMsg((data.error || 'حصل خطأ') + ' (status ' + resp.status + ')', 'err'); return; }
     renderClaims(data.claims, session);
-  } catch (e) { setMsg('حصل خطأ في الاتصال', 'err'); }
+  } catch (e) {
+    $('app').innerHTML = '';
+    setMsg('فشل الاتصال: ' + (e && e.message ? e.message : String(e)), 'err');
+  }
 }
 
 function renderClaims(claims, session) {
@@ -100,7 +110,7 @@ async function decide(btn, session, decision) {
     if (!resp.ok) { setMsg(data.error || 'حصل خطأ', 'err'); item.querySelectorAll('button').forEach((b) => b.disabled = false); return; }
     item.remove();
     setMsg(decision === 'approved' ? 'تمت الموافقة' : 'تم الرفض', 'ok');
-  } catch (e) { setMsg('حصل خطأ في الاتصال', 'err'); item.querySelectorAll('button').forEach((b) => b.disabled = false); }
+  } catch (e) { setMsg('حصل خطأ في الاتصال: ' + (e && e.message ? e.message : e), 'err'); item.querySelectorAll('button').forEach((b) => b.disabled = false); }
 }
 
 init();
