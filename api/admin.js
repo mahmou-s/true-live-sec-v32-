@@ -14,13 +14,25 @@ module.exports = async (req, res) => {
     const userResp = await fetch(SUPABASE_URL + '/auth/v1/user', {
       headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + token }
     });
-    if (!userResp.ok) { res.status(401).json({ error: 'الجلسة منتهية' }); return; }
+    if (!userResp.ok) {
+      const t = await userResp.text();
+      res.status(401).json({ error: 'الجلسة منتهية (status ' + userResp.status + '): ' + t.slice(0, 200) });
+      return;
+    }
     const user = await userResp.json();
+    if (!user || !user.id) { res.status(401).json({ error: 'رد غير متوقع من /auth/v1/user: ' + JSON.stringify(user).slice(0, 200) }); return; }
 
     const adminResp = await fetch(SUPABASE_URL + '/rest/v1/admins?user_id=eq.' + user.id + '&select=user_id', { headers: svHeaders });
-    const adminRows = await adminResp.json();
-    if (!adminResp.ok || !Array.isArray(adminRows) || adminRows.length === 0) {
-      res.status(403).json({ error: 'الصفحة دي للأدمن بس' });
+    const adminText = await adminResp.text();
+    let adminRows;
+    try { adminRows = JSON.parse(adminText); } catch (e) { adminRows = null; }
+
+    if (!adminResp.ok) {
+      res.status(500).json({ error: 'فحص صلاحية الأدمن فشل (status ' + adminResp.status + ', user_id=' + user.id + '): ' + adminText.slice(0, 300) });
+      return;
+    }
+    if (!Array.isArray(adminRows) || adminRows.length === 0) {
+      res.status(403).json({ error: 'مفيش صف في admins لـ user_id=' + user.id + ' (الرد: ' + adminText.slice(0, 200) + ')' });
       return;
     }
 
