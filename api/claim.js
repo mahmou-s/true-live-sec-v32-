@@ -54,9 +54,11 @@ module.exports = async (req, res) => {
       body: JSON.stringify([{ source, external_id, name, city }])
     }
   );
-  const upserted = await upsertResp.json();
+  const upsertText = await upsertResp.text();
+  let upserted;
+  try { upserted = JSON.parse(upsertText); } catch (e) { res.status(500).json({ error: 'رد غير متوقع عند حفظ الشركة: ' + upsertText.slice(0, 300) }); return; }
   if (!upsertResp.ok || !Array.isArray(upserted) || !upserted[0]) {
-    res.status(500).json({ error: 'تعذّر حفظ سجل الشركة' });
+    res.status(500).json({ error: 'تعذّر حفظ سجل الشركة (status ' + upsertResp.status + '): ' + upsertText.slice(0, 300) });
     return;
   }
   const company = upserted[0];
@@ -73,7 +75,7 @@ module.exports = async (req, res) => {
     if (webDomain && emailDomain && webDomain === emailDomain) verified = true;
   }
 
-  await fetch(SUPABASE_URL + '/rest/v1/company_claims', {
+  const claimResp = await fetch(SUPABASE_URL + '/rest/v1/company_claims', {
     method: 'POST',
     headers: svHeaders,
     body: JSON.stringify([{
@@ -85,8 +87,13 @@ module.exports = async (req, res) => {
       reviewed_at: verified ? new Date().toISOString() : null
     }])
   });
+  if (!claimResp.ok) {
+    const claimErrText = await claimResp.text();
+    res.status(500).json({ error: 'تعذّر تسجيل طلب المطالبة (status ' + claimResp.status + '): ' + claimErrText.slice(0, 300) });
+    return;
+  }
 
-  await fetch(SUPABASE_URL + '/rest/v1/companies?id=eq.' + company.id, {
+  const patchResp = await fetch(SUPABASE_URL + '/rest/v1/companies?id=eq.' + company.id, {
     method: 'PATCH',
     headers: svHeaders,
     body: JSON.stringify({
@@ -94,6 +101,11 @@ module.exports = async (req, res) => {
       claim_status: verified ? 'verified' : 'pending_review'
     })
   });
+  if (!patchResp.ok) {
+    const patchErrText = await patchResp.text();
+    res.status(500).json({ error: 'الطلب اتسجّل لكن تعذّر تحديث حالة الشركة (status ' + patchResp.status + '): ' + patchErrText.slice(0, 300) });
+    return;
+  }
 
   res.status(200).json({ status: verified ? 'verified' : 'pending' });
 };
