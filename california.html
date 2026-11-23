@@ -92,11 +92,13 @@ const link = (u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u);
 const CROPK = { almond: 'ALMONDS', pistachio: 'PISTACHIOS', walnut: 'WALNUTS', grape: 'GRAPES', tomato: 'TOMATOES', orange: 'ORANGES' };
 const cropOf = (x) => { const h = ($('q').value + ' ' + x.text).toLowerCase(), k = Object.keys(CROPK).find((w) => h.includes(w)); return k ? '&cr=' + CROPK[k] : ''; };
 const webSearch = (x) => 'https://www.google.com/search?q=' + encodeURIComponent([x.name, String(x.city || '').split('/')[0].trim(), 'California'].filter(Boolean).join(' '));
+const claimQS = (x) => 'source=' + encodeURIComponent((x.from && x.from[0]) || '') + '&name=' + encodeURIComponent(x.name) + '&city=' + encodeURIComponent(String(x.city || '').split('/')[0].trim()) + (x.website ? '&website=' + encodeURIComponent(x.website) : '');
 function card(x) {
   const acts = (x.phone ? '<a href="tel:' + esc(x.phone.replace(/[^\d+]/g, '')) + '">اتصال ' + ltr(x.phone) + '</a>' : '')
     + (x.email ? '<a href="mailto:' + esc(x.email.split(/[;, ]+/)[0]) + '">إيميل</a>' : '')
     + (x.website ? '<a href="' + esc(link(x.website)) + '" target="_blank" rel="noopener">الموقع</a>' : '')
-    + (!x.website && x.from.includes('gap') ? '<a href="' + esc(webSearch(x)) + '" target="_blank" rel="noopener">ابحث عن الشركة</a>' : '');
+    + (!x.website && x.from.includes('gap') ? '<a href="' + esc(webSearch(x)) + '" target="_blank" rel="noopener">ابحث عن الشركة</a>' : '')
+    + '<a href="/claim.html?' + claimQS(x) + '" target="_blank" rel="noopener">هذه شركتي</a>';
   const srcs = x.sources.map((s) => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.name) + '</a>، بيانات ' + ltr(s.dataDate)).join('<br>');
   return '<article class="item"><h2>' + ltr(x.name) + '</h2><div class="meta" style="overflow-wrap:anywhere">' + place(x) + '</div>'
     + '<div class="what">' + esc(x.tags.join('، ')) + (x.from.length > 1 ? ' · في أكثر من مصدر' : '') + '</div>' + (x.from.includes('gap') ? '<div class="what">المحاصيل: ' + ltr(cropsOf(x)) + '</div>' : '') + (acts ? '<div class="acts">' + acts + '</div>' : '')
@@ -152,4 +154,4 @@ init();
 </script>
 <script src="/nav.js"></script>
 </body>
-</html>
+  </html>
