@@ -12,7 +12,12 @@
   nav.className = 'msmmk-nav';
   nav.setAttribute('aria-label', 'التنقل');
   var brand = '<a href="/" class="msmmk-brand">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' +
+    '<path d="M12 7L6.5 15M12 7l5.5 8M7 17h10" stroke-linecap="round"/>' +
+    '<circle cx="12" cy="5" r="2.2" fill="currentColor" stroke="none"/>' +
+    '<circle cx="5" cy="18" r="2.2" fill="currentColor" stroke="none"/>' +
+    '<circle cx="19" cy="18" r="2.2" fill="currentColor" stroke="none"/>' +
+    '</svg>' +
     'MSMMK</a>';
   var linksHtml = links.map(function (l) {
     return '<a href="' + l[0] + '"' + (here === l[0] ? ' class="active"' : '') + '>' + l[1] + '</a>';
