@@ -1,0 +1,21 @@
+:root{
+  --msmmk-blue:#1a6fd4;
+  --msmmk-blue-dark:#0d4e9e;
+  --msmmk-ink:#1f2937;
+  --msmmk-muted:#5b6472;
+  --msmmk-bg:#ffffff;
+  --msmmk-bg-soft:#f5f8fc;
+  --msmmk-line:#e3e8ef;
+}
+body{color:var(--msmmk-ink)}
+a{color:var(--msmmk-blue)}
+a:hover{text-decoration:underline}
+h1,h2,h3{color:var(--msmmk-ink)}
+.msmmk-nav{display:flex;align-items:center;gap:18px;padding:10px 16px;background:var(--msmmk-bg-soft);border-bottom:1px solid var(--msmmk-line);font-size:14px;overflow-x:auto;white-space:nowrap}
+.msmmk-nav a{color:var(--msmmk-muted);text-decoration:none;padding:4px 2px}
+.msmmk-nav a:hover{color:var(--msmmk-blue-dark);text-decoration:none}
+.msmmk-nav a.active{color:var(--msmmk-blue-dark);font-weight:700;border-bottom:2px solid var(--msmmk-blue)}
+.msmmk-nav a.msmmk-brand{display:flex;align-items:center;gap:6px;font-weight:800;color:var(--msmmk-blue-dark);font-size:16px;flex:none;border-bottom:none}
+.msmmk-nav a.msmmk-brand svg{width:20px;height:20px}
+.primary,button.primary{background:var(--msmmk-blue);border:0}
+.primary:hover{background:var(--msmmk-blue-dark)}
