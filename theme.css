@@ -19,3 +19,4 @@ h1,h2,h3{color:var(--msmmk-ink)}
 .msmmk-nav a.msmmk-brand svg{width:20px;height:20px}
 .primary,button.primary{background:var(--msmmk-blue);border:0}
 .primary:hover{background:var(--msmmk-blue-dark)}
+--msmmk-blue-light:#6fb0ec;
